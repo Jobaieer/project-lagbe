@@ -8,17 +8,13 @@ const express = require("express"),
   { createClient } = require("@supabase/supabase-js");
 
 const E = process.env;
-if (!E.SUPABASE_URL || !E.SUPABASE_SERVICE_ROLE_KEY)
-  throw new Error(
-    "SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY are required",
-  );
-if (E.NODE_ENV === "production" && !E.JWT_SECRET)
-  throw new Error("JWT_SECRET is required in production");
-
 const S = E.JWT_SECRET || "dev-secret";
-const db = createClient(E.SUPABASE_URL, E.SUPABASE_SERVICE_ROLE_KEY, {
-  auth: { autoRefreshToken: false, persistSession: false },
-});
+const db =
+  E.SUPABASE_URL && E.SUPABASE_SERVICE_ROLE_KEY
+    ? createClient(E.SUPABASE_URL, E.SUPABASE_SERVICE_ROLE_KEY, {
+        auth: { autoRefreshToken: false, persistSession: false },
+      })
+    : null;
 const app = express();
 app.disable("x-powered-by");
 app.set("trust proxy", 1);
@@ -61,6 +57,7 @@ const orderView = (o, users, projects) => ({
 });
 
 async function ensureAdmin() {
+  if (!db) throw new Error("Supabase environment variables are missing");
   const email = (E.ADMIN_EMAIL || "admin@site.com").toLowerCase();
   const pass = E.ADMIN_PASS || "admin123";
   const existing = unwrap(
@@ -83,6 +80,10 @@ app.get("/health", (_, r) => r.send("ok"));
 app.get(
   "/api/health/db",
   asyncRoute(async (_, r) => {
+    if (!db)
+      return r
+        .status(503)
+        .json({ ok: false, database: "not_configured" });
     const result = await db.from("users").select("id").limit(1);
     if (result.error) {
       console.error("Supabase health check failed:", result.error);
@@ -287,7 +288,9 @@ app.use((e, _, r, __) => {
   bad(r, "Server error", 500);
 });
 
-const ready = ensureAdmin();
+const ready = ensureAdmin().catch((e) => {
+  console.error("Supabase initialization failed:", e);
+});
 
 if (require.main === module) {
   ready
