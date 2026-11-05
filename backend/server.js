@@ -61,18 +61,21 @@ const orderView = (o, users, projects) => ({
 });
 
 async function ensureAdmin() {
-  const admins = unwrap(
-    await db.from("users").select("id").eq("role", "admin").limit(1),
+  const email = (E.ADMIN_EMAIL || "admin@site.com").toLowerCase();
+  const pass = E.ADMIN_PASS || "admin123";
+  const existing = unwrap(
+    await db.from("users").select("id").eq("email", email).maybeSingle(),
   );
-  if (!admins.length) {
-    unwrap(
-      await db.from("users").insert({
-        name: "Admin",
-        email: E.ADMIN_EMAIL || "admin@site.com",
-        pass: bcrypt.hashSync(E.ADMIN_PASS || "admin123", 10),
-        role: "admin",
-      }),
-    );
+  const data = {
+    name: "Admin",
+    email,
+    pass: bcrypt.hashSync(pass, 10),
+    role: "admin",
+  };
+  if (existing) {
+    unwrap(await db.from("users").update(data).eq("id", existing.id));
+  } else {
+    unwrap(await db.from("users").insert(data));
   }
 }
 
