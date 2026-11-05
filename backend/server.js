@@ -273,13 +273,19 @@ app.use((e, _, r, __) => {
   bad(r, "Server error", 500);
 });
 
-ensureAdmin()
-  .then(() =>
-    app.listen(E.PORT || 3000, () =>
-      console.log("Running on :" + (E.PORT || 3000)),
-    ),
-  )
-  .catch((e) => {
-    console.error("Supabase initialization failed:", e);
-    process.exit(1);
-  });
+const ready = ensureAdmin();
+
+if (require.main === module) {
+  ready
+    .then(() =>
+      app.listen(E.PORT || 3000, () =>
+        console.log("Running on :" + (E.PORT || 3000)),
+      ),
+    )
+    .catch((e) => {
+      console.error("Supabase initialization failed:", e);
+      process.exit(1);
+    });
+}
+
+module.exports = { app, ready };

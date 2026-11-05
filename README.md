@@ -24,3 +24,11 @@ connect the GitHub repository, and apply the blueprint. Fill in the
 
 After deployment, verify `/health`, then open `/login` and test the admin
 account. Do not commit `.env` or expose the Supabase service-role key.
+
+### Vercel deployment
+
+The project also includes `vercel.json` and `api/index.js` for the Express
+API as a Vercel serverless function. Import the repository in Vercel, keep
+the build command as `npm run build`, and add the environment variables from
+`.env.example` in Project Settings. Do not add `SUPABASE_SERVICE_ROLE_KEY`
+to frontend environment variables.
