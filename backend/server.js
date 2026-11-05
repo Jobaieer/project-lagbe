@@ -80,6 +80,17 @@ async function ensureAdmin() {
 }
 
 app.get("/health", (_, r) => r.send("ok"));
+app.get(
+  "/api/health/db",
+  asyncRoute(async (_, r) => {
+    const result = await db.from("users").select("id").limit(1);
+    if (result.error) {
+      console.error("Supabase health check failed:", result.error);
+      return r.status(503).json({ ok: false, database: "unavailable" });
+    }
+    r.json({ ok: true, database: "supabase" });
+  }),
+);
 app.get("/api/config", (_, r) =>
   r.json({ pay: E.PAY_INFO || "bKash/Nagad: 01XXXXXXXXX (Send Money)" }),
 );
