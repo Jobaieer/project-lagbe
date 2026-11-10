@@ -164,6 +164,7 @@ app.post(
   "/api/register",
   lim,
   asyncRoute(async (req, r) => {
+    if (!db) return bad(r, "Supabase configuration missing. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.", 503);
     const { name, email, password, terms_accepted } = req.body;
     if (
       !name ||
@@ -192,6 +193,9 @@ app.post(
   "/api/login",
   lim,
   asyncRoute(async (req, r) => {
+    if (!db) return bad(r, "Supabase configuration missing. Check SUPABASE_URL and SUPABASE_SERVICE_ROLE_KEY.", 503);
+    if (!/^\S+@\S+\.\S+$/.test(req.body.email || "") || !(req.body.password || ""))
+      return bad(r, "সঠিক ইমেইল ও পাসওয়ার্ড দিন");
     const result = await db
       .from("users")
       .select("id,name,role,seller_status,university_id,department,institution_email,pass")
@@ -781,7 +785,15 @@ app.use(
 app.get("*", (_, r) => r.sendFile(path.join(dist, "index.html")));
 app.use((e, _, r, __) => {
   console.error(e);
-  bad(r, "Server error", 500);
+  const message = String(e?.message || "");
+  const migrationError = /column .* does not exist|schema cache|relation .* does not exist/i.test(message);
+  bad(
+    r,
+    migrationError
+      ? "Database migration incomplete. Run the latest database/schema.sql migration in Supabase SQL Editor."
+      : "Server error",
+    migrationError ? 503 : 500,
+  );
 });
 
 const ready = ensureAdmin().catch((e) => {
