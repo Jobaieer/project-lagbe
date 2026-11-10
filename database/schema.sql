@@ -5,6 +5,7 @@ create table if not exists public.users (
   pass text not null,
   role text not null default 'buyer' check (role in ('buyer', 'seller', 'admin')),
   seller_status text not null default 'none' check (seller_status in ('none', 'pending', 'approved', 'rejected')),
+  seller_eligible boolean not null default false,
   university text,
   university_id text,
   department text,
@@ -62,6 +63,7 @@ create index if not exists projects_seller_id_idx on public.projects(seller_id);
 create index if not exists orders_seller_id_idx on public.orders(seller_id);
 
 alter table public.users add column if not exists seller_status text not null default 'none';
+alter table public.users add column if not exists seller_eligible boolean not null default false;
 alter table public.projects add column if not exists seller_id bigint references public.users(id) on delete set null;
 alter table public.projects add column if not exists commission_percent numeric(5,2) not null default 20;
 update public.projects
@@ -132,6 +134,16 @@ where seller_id is not null
   and status = 'approved'
   and payout_amount > 0
 on conflict (order_id) do nothing;
+
+update public.users u
+set seller_eligible = (
+  select count(distinct o.project_id) >= 2
+  from public.orders o
+  join public.projects p on p.id = o.project_id
+  where o.referral_seller_id = u.id
+    and o.status = 'approved'
+    and p.seller_id is null
+);
 
 insert into public.seller_wallet_transactions (seller_id, order_id, type, amount, note)
 select referral_seller_id, id, 'sale_credit', referral_amount, 'Platform course referral commission'

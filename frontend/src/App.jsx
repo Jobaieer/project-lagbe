@@ -3,6 +3,19 @@ import { Routes, Route, Link, Navigate, useNavigate, useLocation } from "react-r
 import { api } from "./api";
 import { useApp } from "./ctx";
 const Admin = lazy(() => import("./Admin"));
+function Loading({ label }) {
+  return (
+    <div className="loading-screen" role="status" aria-live="polite">
+      <div className="loading-orbit" aria-hidden="true">
+        <span />
+        <span />
+        <span />
+      </div>
+      <strong>{label}</strong>
+      <div className="loading-bar" aria-hidden="true"><i /></div>
+    </div>
+  );
+}
 function Notifications() {
   const { t } = useApp();
   const [items, setItems] = useState([]);
@@ -505,7 +518,7 @@ function Seller() {
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
-  if (!data) return <p>{t("loading")}</p>;
+  if (!data) return <Loading label={t("loading")} />;
   const available = Number(data.wallet?.available || 0);
   const referralLink = `${window.location.origin}/?ref=${encodeURIComponent(data.referral_code || "")}`;
   return (
@@ -513,7 +526,7 @@ function Seller() {
       <h1>{t("sellerDashboard")}</h1>
       <div className="card">
         <strong>{t("referralLink")}</strong>
-        <p className="tag">{t("referralEarn")}: {data.referral_percent}%</p>
+        <p className="tag">{t("referralEarn")}: {data.referral_percent}% · {t("referralSales")}: {data.referral_sales}/2</p>
         <input readOnly value={referralLink} onFocus={(e) => e.target.select()} />
       </div>
       <div className="card">
@@ -522,7 +535,12 @@ function Seller() {
         <p className="tag">{t("department")}: {JSON.parse(localStorage.getItem("u") || "{}").department || "-"} · {t("institutionEmail")}: {JSON.parse(localStorage.getItem("u") || "{}").institution_email || "-"}</p>
       </div>
       <h2>{t("sellerProjects")}</h2>
-      <form className="card" onSubmit={save}>
+      {!data.seller_eligible && (
+        <div className="card notice-card">
+          {t("sellerGate")}
+        </div>
+      )}
+      {data.seller_eligible && <form className="card" onSubmit={save}>
         <input required value={f.title} onChange={set("title")} placeholder={t("title")} />
         <input required value={f.category} onChange={set("category")} placeholder={t("category")} />
         <textarea value={f.description} onChange={set("description")} placeholder={t("description")} />
@@ -534,7 +552,7 @@ function Seller() {
           <button>{editingId ? t("update") : t("add")}</button>
           {editingId && <button type="button" className="alt" onClick={() => { setEditingId(null); setF({ title: "", category: "", description: "", price_code: "", price_consult: "", preview_url: "", cover_url: "" }); }}>{t("cancelEdit")}</button>}
         </div>
-      </form>
+      </form>}
       <div className="card">
         <strong>{t("availablePayout")}: ৳{available.toFixed(2)}</strong>
         <p className="tag">Total earned: ৳{Number(data.wallet?.total_earned || 0).toFixed(2)} · Reserved/withdrawn: ৳{Number(data.wallet?.reserved || 0).toFixed(2)}</p>
@@ -562,7 +580,7 @@ function Orders() {
     api("my-orders").then(setO);
   }, []);
   const { t } = useApp();
-  if (!O) return <p>{t("loading")}</p>;
+  if (!O) return <Loading label={t("loading")} />;
   return (
     <>
       <h1>{t("myOrders")}</h1>
@@ -619,7 +637,7 @@ export default function App() {
     <>
       <Header />
       <main>
-        <Suspense fallback={<p>{t("loading")}</p>}>
+        <Suspense fallback={<Loading label={t("loading")} />}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />

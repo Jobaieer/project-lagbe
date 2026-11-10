@@ -104,6 +104,23 @@ const validInstitutionEmail = (value) => {
   if (!match) return false;
   return !["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com"].includes(match[1]);
 };
+const sellerReferralSales = async (sellerId) => {
+  const orders = unwrap(await db.from("orders")
+    .select("project_id")
+    .eq("referral_seller_id", sellerId)
+    .eq("status", "approved"));
+  if (!orders.length) return 0;
+  const projectIds = [...new Set(orders.map((order) => order.project_id))];
+  const platformProjects = unwrap(await db.from("projects")
+    .select("id")
+    .in("id", projectIds)
+    .is("seller_id", null));
+  const platformProjectIds = new Set(platformProjects.map((project) => project.id));
+  return new Set(orders
+    .filter((order) => platformProjectIds.has(order.project_id))
+    .map((order) => order.project_id)).size;
+};
+const SELLER_GATE_MESSAGE = "Admin-এর 2টি course referral sale সম্পন্ন না হওয়া পর্যন্ত নিজের project sell করা যাবে না";
 
 async function ensureAdmin() {
   if (!db) throw new Error("Supabase environment variables are missing");
@@ -313,15 +330,18 @@ app.get(
   "/api/projects",
   asyncRoute(async (_, r) => {
     r.set("Cache-Control", "public,max-age=30");
-    r.json(
-      unwrap(
-        await db
-          .from("projects")
-          .select("id,title,category,cover_url,preview_url,course,tech,description,price_code,price_consult")
-          .eq("active", true)
-          .order("id", { ascending: false }),
-      ),
-    );
+    const projects = unwrap(await db.from("projects")
+      .select("id,title,category,cover_url,preview_url,course,tech,description,price_code,price_consult,seller_id")
+      .eq("active", true)
+      .order("id", { ascending: false }));
+    const sellerIds = [...new Set(projects.filter((p) => p.seller_id).map((p) => p.seller_id))];
+    const eligible = sellerIds.length
+      ? unwrap(await db.from("users").select("id").in("id", sellerIds).eq("seller_eligible", true))
+      : [];
+    const eligibleIds = new Set(eligible.map((u) => u.id));
+    r.json(projects
+      .filter((p) => !p.seller_id || eligibleIds.has(p.seller_id))
+      .map(({ seller_id, ...project }) => project));
   }),
 );
 app.post(
@@ -416,14 +436,19 @@ app.get(
       const referral_code = `seller-${req.u.id}`;
       seller = unwrap(await db.from("users").update({ referral_code }).eq("id", req.u.id).select("referral_code").single());
     }
-    const projects = unwrap(await db.from("projects").select("*").eq("seller_id", req.u.id).eq("active", true).order("id", { ascending: false }));
+    const referralSales = await sellerReferralSales(req.u.id);
+    if (referralSales >= 2)
+      unwrap(await db.from("users").update({ seller_eligible: true }).eq("id", req.u.id));
+    const projects = referralSales >= 2
+      ? unwrap(await db.from("projects").select("*").eq("seller_id", req.u.id).eq("active", true).order("id", { ascending: false }))
+      : [];
     const orders = unwrap(await db.from("orders").select("id,project_id,option,status,payout_amount,payout_status,created").eq("seller_id", req.u.id).order("id", { ascending: false }));
     const wallet = unwrap(await db.from("seller_wallet_transactions").select("type,amount").eq("seller_id", req.u.id));
     const payoutRequests = unwrap(await db.from("payout_requests").select("amount,status").eq("seller_id", req.u.id));
     const totalEarned = wallet.filter((t) => t.type === "sale_credit").reduce((sum, t) => sum + Number(t.amount), 0);
     const totalWithdrawn = payoutRequests.filter((p) => ["pending", "paid"].includes(p.status)).reduce((sum, p) => sum + Number(p.amount), 0);
     const projectMap = new Map(projects.map((p) => [p.id, p]));
-    r.json({ referral_code: seller.referral_code, referral_percent: REFERRAL_COMMISSION_PERCENT, projects, wallet: { total_earned: totalEarned, reserved: totalWithdrawn, available: Math.max(0, totalEarned - totalWithdrawn) }, orders: orders.map((o) => {
+    r.json({ referral_code: seller.referral_code, referral_percent: REFERRAL_COMMISSION_PERCENT, referral_sales: referralSales, seller_eligible: referralSales >= 2, projects, wallet: { total_earned: totalEarned, reserved: totalWithdrawn, available: Math.max(0, totalEarned - totalWithdrawn) }, orders: orders.map((o) => {
       const project = projectMap.get(o.project_id);
       const gross_amount = Number(o.option === "consult" ? project?.price_consult : project?.price_code) || 0;
       const payout_amount = Number(o.payout_amount) || 0;
@@ -440,6 +465,7 @@ app.post(
   "/api/seller/projects",
   sellerAuth,
   asyncRoute(async (req, r) => {
+    if (await sellerReferralSales(req.u.id) < 2) return bad(r, SELLER_GATE_MESSAGE, 403);
     const b = req.body;
     if (!b.title || !(+b.price_code >= 0) || !(+b.price_consult >= 0))
       return bad(r, "Title ও দাম দিন");
@@ -468,6 +494,7 @@ app.put(
   "/api/seller/projects/:id",
   sellerAuth,
   asyncRoute(async (req, r) => {
+    if (await sellerReferralSales(req.u.id) < 2) return bad(r, SELLER_GATE_MESSAGE, 403);
     const b = req.body;
     if (!b.title || !(+b.price_code >= 0) || !(+b.price_consult >= 0))
       return bad(r, "Title ও দাম দিন");
@@ -633,6 +660,9 @@ app.put(
         "Referral commission credited",
         `৳${Number(current.referral_amount).toFixed(2)} referral commission has been credited.`,
       )));
+      const referralSales = await sellerReferralSales(current.referral_seller_id);
+      if (referralSales >= 2)
+        unwrap(await db.from("users").update({ seller_eligible: true }).eq("id", current.referral_seller_id));
     }
     r.json({ ok: 1 });
   }),
