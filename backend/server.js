@@ -179,13 +179,17 @@ app.post(
         name: name.trim(),
         email: email.toLowerCase(),
         pass: bcrypt.hashSync(password, 10),
-        terms_version: TERMS_VERSION,
-        terms_accepted_at: new Date().toISOString(),
       })
       .select("id,name,role,seller_status")
       .single();
     if (result.error?.code === "23505") return bad(r, "এই ইমেইল আগেই আছে");
     const u = unwrap(result);
+    const termsUpdate = await db.from("users").update({
+      terms_version: TERMS_VERSION,
+      terms_accepted_at: new Date().toISOString(),
+    }).eq("id", u.id);
+    if (termsUpdate.error)
+      console.warn("Terms acceptance columns are unavailable; run the latest schema migration.");
     r.json(tok(u));
   }),
 );
@@ -198,7 +202,7 @@ app.post(
       return bad(r, "সঠিক ইমেইল ও পাসওয়ার্ড দিন");
     const result = await db
       .from("users")
-      .select("id,name,role,seller_status,university_id,department,institution_email,pass")
+      .select("id,name,role,seller_status,pass")
       .eq("email", (req.body.email || "").toLowerCase())
       .maybeSingle();
     const u = unwrap(result);
