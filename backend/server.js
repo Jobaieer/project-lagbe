@@ -264,7 +264,13 @@ app.get(
   A,
   asyncRoute(async (_, r) => {
     r.json(
-      unwrap(await db.from("projects").select("*").order("id", { ascending: false })),
+      unwrap(
+        await db
+          .from("projects")
+          .select("*")
+          .eq("active", true)
+          .order("id", { ascending: false }),
+      ),
     );
   }),
 );
@@ -320,7 +326,13 @@ app.delete(
   "/api/admin/projects/:id",
   A,
   asyncRoute(async (req, r) => {
-    unwrap(await db.from("projects").delete().eq("id", req.params.id));
+    // Keep projects referenced by orders so purchase history remains valid.
+    unwrap(
+      await db
+        .from("projects")
+        .update({ active: false })
+        .eq("id", req.params.id),
+    );
     r.json({ ok: 1 });
   }),
 );
