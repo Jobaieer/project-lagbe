@@ -26,7 +26,7 @@ function Row({ o, reload }) {
       <td>
         {o.title}
         <br />
-        {o.option}
+        {o.option === "code" ? t("optionCode") : t("optionConsult")}
       </td>
       <td>
         {o.method}

@@ -9,7 +9,6 @@ const Header = () => {
   return (
     <header className="site-header">
       <Link className="logo" to="/">
-        <span className="logo-mark">PL</span>
         <span>Project Lagbe?</span>
       </Link>
       <nav>
@@ -18,7 +17,7 @@ const Header = () => {
           <>
             <Link to="/orders">{t("orders")}</Link>
             <Link to="/account">{t("account")}</Link>
-            {user.role === "admin" && <Link to="/admin">Admin</Link>}
+            {user.role === "admin" && <Link to="/admin">{t("admin")}</Link>}
             <button
               className="link"
               onClick={() => {
@@ -46,11 +45,11 @@ const Card = memo(({ p, onBuy }) => {
     {p.cover_url ? (
       <img className="cover" src={p.cover_url} alt={p.title} />
     ) : (
-      <div className="cover placeholder" aria-hidden="true">Project</div>
+      <div className="cover placeholder" aria-hidden="true">{t("projectFallback")}</div>
     )}
     <div className="project-title">
       <h3>{p.title}</h3>
-      <span className="project-badge">{p.category || "Project"}</span>
+      <span className="project-badge">{p.category || t("projectFallback")}</span>
     </div>
     <div className="tag">
       {p.course} • {p.tech}
@@ -83,10 +82,10 @@ function Home() {
   const list = useMemo(() => {
     const k = query.trim().toLowerCase();
     return (P || [])
-      .filter((p) => !category || (p.category || "অন্যান্য") === category)
+      .filter((p) => !category || (p.category || t("otherCategory")) === category)
       .filter((p) => !k || `${p.title} ${p.category} ${p.course} ${p.tech} ${p.description}`.toLowerCase().includes(k))
       .sort((a, b) => (a.category || "").localeCompare(b.category || ""));
-  }, [P, query, category]);
+  }, [P, query, category, t]);
   const onBuy = (p, option) => (user ? setBuy({ p, option }) : go("/login"));
   return (
     <div className="home">
@@ -95,11 +94,6 @@ function Home() {
           <span className="eyebrow">{t("projects")}</span>
           <h1>{t("hero")}</h1>
           <p className="sub">{t("sub")}</p>
-        </div>
-        <div className="hero-art" aria-hidden="true">
-          <span>✦</span>
-          <span>⌘</span>
-          <span>↗</span>
         </div>
       </section>
       <form className="filters" onSubmit={(e) => { e.preventDefault(); setQuery(s); }}>
@@ -112,7 +106,7 @@ function Home() {
         />
         <select value={category} onChange={(e) => setCategory(e.target.value)} aria-label={t("category")}>
           <option value="">{t("allCategories")}</option>
-          {[...new Set((P || []).map((p) => p.category || "অন্যান্য"))].sort().map((c) => <option key={c} value={c}>{c}</option>)}
+          {[...new Set((P || []).map((p) => p.category || t("otherCategory")))].sort().map((c) => <option key={c} value={c}>{c}</option>)}
         </select>
         <button type="submit">{t("search")}</button>
       </form>
@@ -120,11 +114,11 @@ function Home() {
         <div className="loading-card"><span className="spinner" />{t("loading")}</div>
       ) : list.length ? (
         <div className="project-groups">
-          {[...new Set(list.map((p) => p.category || "অন্যান্য"))].map((group) => (
+          {[...new Set(list.map((p) => p.category || t("otherCategory")))].map((group) => (
             <section className="project-group" key={group}>
               <h2>{group}</h2>
               <div className="grid">
-                {list.filter((p) => (p.category || "অন্যান্য") === group).map((p) => (
+                {list.filter((p) => (p.category || t("otherCategory")) === group).map((p) => (
                   <Card key={p.id} p={p} onBuy={onBuy} />
                 ))}
               </div>
@@ -246,7 +240,7 @@ function Login() {
           type="email"
           value={f.email}
           onChange={set("email")}
-          placeholder="Email"
+          placeholder={t("email")}
           autoComplete="email"
         />
         <input
@@ -366,12 +360,12 @@ function Orders() {
   );
 }
 export default function App() {
-  const { user } = useApp();
+  const { user, t } = useApp();
   return (
     <>
       <Header />
       <main>
-        <Suspense fallback={<p>লোড হচ্ছে…</p>}>
+        <Suspense fallback={<p>{t("loading")}</p>}>
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />

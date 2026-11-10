@@ -1,21 +1,21 @@
 :root {
   --red: #e5201e;
   --org: #f47b12;
-  --bg: #f7f8fc;
+  --bg: #fffaf7;
   --ink: #20232d;
   --card: #fff;
   --mut: #707584;
-  --line: #e5e7ee;
-  --shadow: 0 16px 42px #232b4812;
+  --line: #f0dfd6;
+  --shadow: 0 16px 42px #7f321512;
   color-scheme: light dark;
 }
 @media (prefers-color-scheme: dark) {
   :root {
-    --bg: #17171b;
+    --bg: #1b1718;
     --ink: #f1f1f4;
     --card: #222228;
     --mut: #a0a0ab;
-    --line: #35353d;
+    --line: #493536;
   }
 }
 * {
@@ -27,7 +27,7 @@ body {
     16px/1.6 "Hind Siliguri",
     system-ui,
     sans-serif;
-  background: radial-gradient(circle at 8% 0%, #fff1e9 0, transparent 26rem), var(--bg);
+  background: var(--bg);
   color: var(--ink);
 }
 .site-header {
@@ -57,17 +57,6 @@ body {
   color: transparent;
   text-decoration: none;
 }
-.logo-mark {
-  display: grid;
-  place-items: center;
-  width: 35px;
-  height: 35px;
-  border-radius: 11px;
-  background: linear-gradient(135deg, var(--red), var(--org));
-  color: #fff;
-  font: 800 14px system-ui, sans-serif;
-  box-shadow: 0 7px 16px #e5201e35;
-}
 nav {
   display: flex;
   gap: 16px;
@@ -95,9 +84,29 @@ nav a:hover,
   border: 1px solid var(--line);
 }
 main {
+  position: relative;
+  isolation: isolate;
   padding: 42px 5vw 70px;
   max-width: 1180px;
   margin: auto;
+}
+main::before {
+  content: "Project Lagbe?";
+  position: fixed;
+  left: 50%;
+  top: 52%;
+  z-index: -1;
+  color: #e5201e12;
+  font:
+    800 clamp(70px, 14vw, 190px)/1 "Baloo Da 2",
+    sans-serif;
+  letter-spacing: -0.04em;
+  white-space: nowrap;
+  filter: blur(3px);
+  transform: translate(-50%, -50%) rotate(-12deg);
+  text-shadow: 0 0 28px #e5201e55, 0 0 80px #f47b1245;
+  animation: watermarkPulse 7s ease-in-out infinite;
+  pointer-events: none;
 }
 h1 {
   font:
@@ -124,12 +133,17 @@ h1 {
   overflow: hidden;
   border-radius: 28px;
   color: #fff;
-  background: linear-gradient(125deg, #191d35, #3c2342 55%, #ef7118);
-  box-shadow: 0 22px 50px #39213d35;
+  background: linear-gradient(120deg, #15161b, #24252d 68%, #2c2020);
+  box-shadow: 0 22px 50px #17171b32;
 }
 .hero h1 {
   max-width: 680px;
   margin-top: 6px;
+  color: #fff;
+  text-shadow:
+    0 0 7px #e5201e99,
+    0 0 18px #f47b1266;
+  animation: headlineGlow 4s ease-in-out infinite;
 }
 .eyebrow {
   text-transform: uppercase;
@@ -141,28 +155,6 @@ h1 {
 .hero .sub {
   color: #ffffffc7;
 }
-.hero-art {
-  position: relative;
-  width: 180px;
-  height: 150px;
-  flex: 0 0 auto;
-  transform: rotate(7deg);
-}
-.hero-art span {
-  position: absolute;
-  display: grid;
-  place-items: center;
-  width: 72px;
-  height: 72px;
-  border: 1px solid #ffffff45;
-  border-radius: 20px;
-  background: #ffffff18;
-  backdrop-filter: blur(5px);
-  font-size: 28px;
-}
-.hero-art span:nth-child(1) { top: 2px; left: 18px; }
-.hero-art span:nth-child(2) { top: 58px; right: 2px; }
-.hero-art span:nth-child(3) { bottom: 0; left: 0; }
 .filters {
   padding: 10px;
   max-width: none;
@@ -433,6 +425,29 @@ th {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+@keyframes watermarkPulse {
+  0%, 100% {
+    opacity: 0.42;
+    filter: blur(3px);
+  }
+  50% {
+    opacity: 0.9;
+    filter: blur(6px);
+  }
+}
+@keyframes headlineGlow {
+  0%, 100% {
+    text-shadow:
+      0 0 7px #e5201e99,
+      0 0 18px #f47b1266;
+  }
+  50% {
+    text-shadow:
+      0 0 10px #e5201ecc,
+      0 0 28px #f47b12aa,
+      0 0 46px #f47b124d;
+  }
+}
 :focus-visible {
   outline: 3px solid var(--org);
   outline-offset: 2px;
@@ -460,9 +475,6 @@ th {
     min-height: 220px;
     padding: 28px 22px;
     border-radius: 22px;
-  }
-  .hero-art {
-    display: none;
   }
   .filters {
     align-items: stretch;

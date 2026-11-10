@@ -19,7 +19,7 @@ const translations = {
     consult: "কোড + লাইভ কনসাল্টেন্সি", orderSent: "অর্ডার জমা হয়েছে। Approve-এর অপেক্ষা করুন।",
     sourceCode: "শুধু সোর্স কোড", cancel: "বাতিল", order: "অর্ডার করুন", submitting: "জমা হচ্ছে…",
     transaction: "Transaction ID", note: "নোট (ঐচ্ছিক)", sessionNote: "কখন লাইভ সেশন চান? (সময় / WhatsApp নম্বর)",
-    register: "Register", login: "Login", name: "নাম", password: "Password (৬+ অক্ষর)",
+    register: "Register", login: "Login", name: "নাম", email: "ইমেইল", password: "Password (৬+ অক্ষর)",
     existing: "আগে থেকেই অ্যাকাউন্ট আছে", newAccount: "নতুন অ্যাকাউন্ট", myOrders: "আমার অর্ডার",
     noOrders: "এখনো কোনো অর্ডার নেই।", viewProjects: "প্রজেক্ট দেখুন", project: "প্রজেক্ট",
     type: "ধরন", status: "স্ট্যাটাস", access: "অ্যাক্সেস", download: "ডাউনলোড",
@@ -34,6 +34,7 @@ const translations = {
     account: "অ্যাকাউন্ট", changePassword: "পাসওয়ার্ড পরিবর্তন", currentPassword: "বর্তমান পাসওয়ার্ড",
     newPassword: "নতুন পাসওয়ার্ড", confirmPassword: "নতুন পাসওয়ার্ড আবার লিখুন",
     passwordChanged: "পাসওয়ার্ড পরিবর্তন হয়েছে",
+    projectFallback: "প্রজেক্ট", optionCode: "কোড", optionConsult: "কোড + লাইভ", otherCategory: "অন্যান্য",
   },
   en: {
     projects: "Projects", orders: "My orders", loginRegister: "Login / Register",
@@ -44,7 +45,7 @@ const translations = {
     consult: "Code + live consultation", orderSent: "Order submitted. Please wait for approval.",
     sourceCode: "Source code only", cancel: "Cancel", order: "Place order", submitting: "Submitting…",
     transaction: "Transaction ID", note: "Note (optional)", sessionNote: "When would you like the live session? (time / WhatsApp)",
-    register: "Register", login: "Login", name: "Name", password: "Password (6+ characters)",
+    register: "Register", login: "Login", name: "Name", email: "Email", password: "Password (6+ characters)",
     existing: "Already have an account", newAccount: "Create an account", myOrders: "My orders",
     noOrders: "No orders yet.", viewProjects: "Browse projects", project: "Project",
     type: "Type", status: "Status", access: "Access", download: "Download",
@@ -59,6 +60,7 @@ const translations = {
     account: "Account", changePassword: "Change password", currentPassword: "Current password",
     newPassword: "New password", confirmPassword: "Confirm new password",
     passwordChanged: "Password changed successfully",
+    projectFallback: "Project", optionCode: "Code", optionConsult: "Code + live", otherCategory: "Other",
   },
 };
 export function AppProvider({ children }) {
