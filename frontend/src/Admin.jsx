@@ -76,6 +76,9 @@ export default function Admin() {
   const [message, setMessage] = useState({ title: "", body: "" });
   const [applications, setApplications] = useState([]);
   const [payouts, setPayouts] = useState([]);
+  const [tab, setTab] = useState("overview");
+  const [orderFilter, setOrderFilter] = useState("all");
+  const [projectSearch, setProjectSearch] = useState("");
   const load = useCallback(() => {
     Promise.all([api("admin/orders"), api("admin/projects"), api("admin/seller-applications"), api("admin/payout-requests")]).then(([o, p, a, payouts]) => {
       setO(o);
@@ -85,6 +88,9 @@ export default function Admin() {
     });
   }, []);
   useEffect(load, [load]);
+  const pendingOrders = O.filter((o) => o.status === "pending");
+  const filteredOrders = O.filter((o) => orderFilter === "all" || o.status === orderFilter);
+  const filteredProjects = P.filter((p) => `${p.title} ${p.category} ${p.course}`.toLowerCase().includes(projectSearch.toLowerCase()));
   const save = async (e) => {
     e.preventDefault();
     try {
@@ -160,9 +166,32 @@ export default function Admin() {
   return (
     <>
       <h1>{t("admin")}</h1>
-      <h3>
-        {t("manageOrders")} ({O.filter((o) => o.status === "pending").length} {t("pendingCount")})
-      </h3>
+      <div className="admin-stats">
+        <button className="admin-stat" onClick={() => setTab("orders")}><b>{pendingOrders.length}</b><span>{t("pendingOrders")}</span></button>
+        <button className="admin-stat" onClick={() => setTab("projects")}><b>{P.length}</b><span>{t("projectList")}</span></button>
+        <button className="admin-stat" onClick={() => setTab("sellers")}><b>{applications.length}</b><span>{t("sellerApplications")}</span></button>
+        <button className="admin-stat" onClick={() => setTab("payouts")}><b>{payouts.length}</b><span>{t("payoutRequests")}</span></button>
+      </div>
+      <div className="admin-tabs" role="tablist">
+        {[
+          ["overview", t("overview")],
+          ["orders", t("manageOrders")],
+          ["projects", t("projectList")],
+          ["sellers", t("sellerApplications")],
+          ["payouts", t("payoutRequests")],
+          ["notifications", t("notifications")],
+        ].map(([key, label]) => (
+          <button key={key} className={tab === key ? "" : "alt"} onClick={() => setTab(key)}>{label}</button>
+        ))}
+        <button className="alt" onClick={load}>{t("refresh")}</button>
+      </div>
+      {(tab === "overview" || tab === "orders") && <section className="admin-section">
+      <div className="admin-section-head">
+        <h3>{t("manageOrders")} ({pendingOrders.length} {t("pendingCount")})</h3>
+        <select value={orderFilter} onChange={(e) => setOrderFilter(e.target.value)}>
+          <option value="all">{t("allOrders")}</option><option value="pending">{t("pending")}</option><option value="approved">{t("approved")}</option><option value="rejected">{t("rejected")}</option>
+        </select>
+      </div>
       <div className="box">
         <table>
           <thead>
@@ -175,13 +204,18 @@ export default function Admin() {
             </tr>
           </thead>
           <tbody>
-            {O.map((o) => (
+            {filteredOrders.map((o) => (
               <Row key={o.id} o={o} reload={load} />
             ))}
           </tbody>
         </table>
       </div>
-      <h3>{editingId ? t("edit") : t("newProject")}</h3>
+      </section>}
+      {(tab === "overview" || tab === "projects") && <section className="admin-section">
+      <div className="admin-section-head">
+        <h3>{editingId ? t("edit") : t("newProject")}</h3>
+        <input className="admin-search" value={projectSearch} onChange={(e) => setProjectSearch(e.target.value)} placeholder={t("searchProjects")} />
+      </div>
       <form className="card" onSubmit={save}>
         <input
           required
@@ -249,7 +283,7 @@ export default function Admin() {
         </div>
       </form>
       <h3>{t("projectList")}</h3>
-      {P.map((p) => (
+      {filteredProjects.map((p) => (
         <div className="card mb project-admin-row" key={p.id}>
           <div>
             <strong>{p.title}</strong>
@@ -265,6 +299,8 @@ export default function Admin() {
           </div>
         </div>
       ))}
+      </section>}
+      {(tab === "overview" || tab === "sellers") && <section className="admin-section">
       <h3>{t("sellerApplications")}</h3>
       {applications.map((application) => (
         <div className="card mb" key={application.id}>
@@ -279,6 +315,8 @@ export default function Admin() {
           </div>
         </div>
       ))}
+      </section>}
+      {(tab === "overview" || tab === "payouts") && <section className="admin-section">
       <h3>{t("payoutRequests")}</h3>
       {payouts.map((request) => (
         <div className="card mb" key={request.id}>
@@ -290,12 +328,15 @@ export default function Admin() {
           </div>
         </div>
       ))}
+      </section>}
+      {(tab === "overview" || tab === "notifications") && <section className="admin-section">
       <h3>{t("broadcast")}</h3>
       <form className="card" onSubmit={sendBroadcast}>
         <input required value={message.title} onChange={(e) => setMessage({ ...message, title: e.target.value })} placeholder={t("notificationTitle")} />
         <textarea required value={message.body} onChange={(e) => setMessage({ ...message, body: e.target.value })} placeholder={t("notificationMessage")} />
         <button>{t("sendNotification")}</button>
       </form>
+      </section>}
     </>
   );
 }

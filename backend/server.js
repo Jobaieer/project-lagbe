@@ -96,6 +96,7 @@ const orderView = (o, users, projects) => ({
 const notification = (user_id, title, body) => ({ user_id, title, body });
 const A = auth("admin");
 const PLATFORM_COMMISSION_PERCENT = 20;
+const REFERRAL_COMMISSION_PERCENT = 5;
 const TERMS_VERSION = "2026-11-11";
 const validInstitutionEmail = (value) => {
   const email = String(value || "").trim().toLowerCase();
@@ -300,7 +301,7 @@ app.post(
   "/api/orders",
   auth(),
   asyncRoute(async (req, r) => {
-    const { project_id, option, method, trx_id, note } = req.body;
+    const { project_id, option, method, trx_id, note, referral_code } = req.body;
     if (
       !project_id ||
       !["code", "consult"].includes(option) ||
@@ -316,6 +317,16 @@ app.post(
         .single(),
     );
     const price = option === "consult" ? project.price_consult : project.price_code;
+    let referralSeller = null;
+    if (!project.seller_id && referral_code) {
+      referralSeller = unwrap(await db.from("users")
+        .select("id")
+        .eq("referral_code", String(referral_code).trim())
+        .eq("role", "seller")
+        .eq("seller_status", "approved")
+        .neq("id", req.u.id)
+        .maybeSingle());
+    }
     unwrap(
       await db.from("orders").insert({
         user_id: req.u.id,
@@ -325,6 +336,8 @@ app.post(
         trx_id: trx_id.trim(),
         note: note || "",
         seller_id: project.seller_id,
+        referral_seller_id: referralSeller?.id || null,
+        referral_amount: referralSeller ? Number(price) * REFERRAL_COMMISSION_PERCENT / 100 : null,
         payout_amount: project.seller_id
           ? Number(price) * (1 - Number(project.commission_percent || PLATFORM_COMMISSION_PERCENT) / 100)
           : null,
@@ -371,10 +384,19 @@ app.get(
   "/api/seller/dashboard",
   sellerAuth,
   asyncRoute(async (req, r) => {
+    let seller = unwrap(await db.from("users").select("referral_code").eq("id", req.u.id).single());
+    if (!seller.referral_code) {
+      const referral_code = `seller-${req.u.id}`;
+      seller = unwrap(await db.from("users").update({ referral_code }).eq("id", req.u.id).select("referral_code").single());
+    }
     const projects = unwrap(await db.from("projects").select("*").eq("seller_id", req.u.id).eq("active", true).order("id", { ascending: false }));
     const orders = unwrap(await db.from("orders").select("id,project_id,option,status,payout_amount,payout_status,created").eq("seller_id", req.u.id).order("id", { ascending: false }));
+    const wallet = unwrap(await db.from("seller_wallet_transactions").select("type,amount").eq("seller_id", req.u.id));
+    const payoutRequests = unwrap(await db.from("payout_requests").select("amount,status").eq("seller_id", req.u.id));
+    const totalEarned = wallet.filter((t) => t.type === "sale_credit").reduce((sum, t) => sum + Number(t.amount), 0);
+    const totalWithdrawn = payoutRequests.filter((p) => ["pending", "paid"].includes(p.status)).reduce((sum, p) => sum + Number(p.amount), 0);
     const projectMap = new Map(projects.map((p) => [p.id, p]));
-    r.json({ projects, orders: orders.map((o) => {
+    r.json({ referral_code: seller.referral_code, referral_percent: REFERRAL_COMMISSION_PERCENT, projects, wallet: { total_earned: totalEarned, reserved: totalWithdrawn, available: Math.max(0, totalEarned - totalWithdrawn) }, orders: orders.map((o) => {
       const project = projectMap.get(o.project_id);
       const gross_amount = Number(o.option === "consult" ? project?.price_consult : project?.price_code) || 0;
       const payout_amount = Number(o.payout_amount) || 0;
@@ -440,10 +462,19 @@ app.post(
   asyncRoute(async (req, r) => {
     const amount = Number(req.body.amount);
     if (!(amount > 0)) return bad(r, "Valid amount দিন");
-    const unpaid = unwrap(await db.from("orders").select("payout_amount").eq("seller_id", req.u.id).eq("status", "approved").eq("payout_status", "unpaid"));
-    const available = unpaid.reduce((sum, order) => sum + Number(order.payout_amount || 0), 0);
+    const credits = unwrap(await db.from("seller_wallet_transactions").select("amount").eq("seller_id", req.u.id).eq("type", "sale_credit"));
+    const requests = unwrap(await db.from("payout_requests").select("amount,status").eq("seller_id", req.u.id).in("status", ["pending", "paid"]));
+    const available = credits.reduce((sum, credit) => sum + Number(credit.amount || 0), 0)
+      - requests.reduce((sum, request) => sum + Number(request.amount || 0), 0);
     if (amount > available) return bad(r, "Available payout-এর চেয়ে বেশি চাওয়া যাবে না");
-    unwrap(await db.from("payout_requests").insert({ seller_id: req.u.id, amount }));
+    const payoutRequest = unwrap(await db.from("payout_requests").insert({ seller_id: req.u.id, amount }).select("id").single());
+    unwrap(await db.from("seller_wallet_transactions").insert({
+      seller_id: req.u.id,
+      payout_request_id: payoutRequest.id,
+      type: "payout_debit",
+      amount,
+      note: "Payout requested",
+    }));
     unwrap(await db.from("orders").update({ payout_status: "requested" }).eq("seller_id", req.u.id).eq("status", "approved").eq("payout_status", "unpaid"));
     r.json({ ok: 1 });
   }),
@@ -526,7 +557,7 @@ app.put(
     if (!["pending", "approved", "rejected"].includes(req.body.status))
       return bad(r, "Invalid");
     const current = unwrap(
-      await db.from("orders").select("user_id,status").eq("id", req.params.id).single(),
+      await db.from("orders").select("user_id,seller_id,referral_seller_id,referral_amount,status,payout_amount").eq("id", req.params.id).single(),
     );
     unwrap(
       await db
@@ -547,6 +578,34 @@ app.put(
           ),
         ),
       );
+    }
+    if (current.status !== "approved" && req.body.status === "approved" && current.seller_id && Number(current.payout_amount) > 0) {
+      unwrap(await db.from("seller_wallet_transactions").upsert({
+        seller_id: current.seller_id,
+        order_id: Number(req.params.id),
+        type: "sale_credit",
+        amount: current.payout_amount,
+        note: "Approved seller order",
+      }, { onConflict: "order_id" }));
+      unwrap(await db.from("notifications").insert(notification(
+        current.seller_id,
+        "Sale credited",
+        `৳${Number(current.payout_amount).toFixed(2)} has been credited to your seller account.`,
+      )));
+    }
+    if (current.status !== "approved" && req.body.status === "approved" && current.referral_seller_id && Number(current.referral_amount) > 0) {
+      unwrap(await db.from("seller_wallet_transactions").upsert({
+        seller_id: current.referral_seller_id,
+        order_id: Number(req.params.id),
+        type: "sale_credit",
+        amount: current.referral_amount,
+        note: "Platform course referral commission",
+      }, { onConflict: "order_id" }));
+      unwrap(await db.from("notifications").insert(notification(
+        current.referral_seller_id,
+        "Referral commission credited",
+        `৳${Number(current.referral_amount).toFixed(2)} referral commission has been credited.`,
+      )));
     }
     r.json({ ok: 1 });
   }),

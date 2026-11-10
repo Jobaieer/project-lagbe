@@ -401,6 +401,49 @@ h1 {
 .project-admin-row .tag {
   display: block;
 }
+.admin-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin: 18px 0;
+}
+.admin-stat {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  text-align: left;
+}
+.admin-stat b {
+  font-size: 24px;
+}
+.admin-stat span {
+  font-size: 13px;
+}
+.admin-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: 18px 0 24px;
+}
+.admin-section {
+  margin-bottom: 28px;
+}
+.admin-section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+.admin-section-head h3 {
+  margin: 12px 0;
+}
+.admin-section-head select,
+.admin-search {
+  width: auto;
+  min-width: 180px;
+  margin: 5px 0 10px;
+}
 .row {
   display: flex;
   gap: 8px;
@@ -577,6 +620,13 @@ th {
   outline-offset: 2px;
 }
 @media (max-width: 620px) {
+  .admin-stats {
+    grid-template-columns: repeat(2, 1fr);
+  }
+  .admin-section-head {
+    align-items: stretch;
+    flex-direction: column;
+  }
   main {
     padding: 24px 16px 48px;
   }

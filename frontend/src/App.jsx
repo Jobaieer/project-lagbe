@@ -1,5 +1,5 @@
 import { lazy, Suspense, useEffect, useMemo, useState, memo } from "react";
-import { Routes, Route, Link, Navigate, useNavigate } from "react-router-dom";
+import { Routes, Route, Link, Navigate, useNavigate, useLocation } from "react-router-dom";
 import { api } from "./api";
 import { useApp } from "./ctx";
 const Admin = lazy(() => import("./Admin"));
@@ -128,6 +128,7 @@ function Home() {
   const [buy, setBuy] = useState(null);
   const { user, t } = useApp();
   const go = useNavigate();
+  const referralCode = new URLSearchParams(useLocation().search).get("ref") || "";
   useEffect(() => {
     api("projects")
       .then(setP)
@@ -185,11 +186,11 @@ function Home() {
           <span>{t("searchPlaceholder")}</span>
         </div>
       )}
-      {buy && <Buy {...buy} onClose={() => setBuy(null)} />}
+      {buy && <Buy {...buy} referralCode={referralCode} onClose={() => setBuy(null)} />}
     </div>
   );
 }
-function Buy({ p, option, onClose }) {
+function Buy({ p, option, referralCode, onClose }) {
   const { cfg, notify, t } = useApp();
   const go = useNavigate();
   const [f, setF] = useState({ method: "bKash", trx_id: "", note: "" });
@@ -205,7 +206,7 @@ function Buy({ p, option, onClose }) {
     e.preventDefault();
     setBusy(true);
     try {
-      await api("orders", "POST", { project_id: p.id, option, ...f });
+      await api("orders", "POST", { project_id: p.id, option, referral_code: referralCode || undefined, ...f });
       notify(t("orderSent"));
       onClose();
       go("/orders");
@@ -468,10 +469,16 @@ function Seller() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
   if (!data) return <p>{t("loading")}</p>;
-  const available = data.orders.filter((o) => o.status === "approved" && o.payout_status === "unpaid").reduce((sum, o) => sum + Number(o.payout_amount || 0), 0);
+  const available = Number(data.wallet?.available || 0);
+  const referralLink = `${window.location.origin}/?ref=${encodeURIComponent(data.referral_code || "")}`;
   return (
     <>
       <h1>{t("sellerDashboard")}</h1>
+      <div className="card">
+        <strong>{t("referralLink")}</strong>
+        <p className="tag">{t("referralEarn")}: {data.referral_percent}%</p>
+        <input readOnly value={referralLink} onFocus={(e) => e.target.select()} />
+      </div>
       <div className="card">
         <strong>{t("sellerProfile")}</strong>
         <p className="tag">{t("university")}: {JSON.parse(localStorage.getItem("u") || "{}").university || "-"} · {t("universityId")}: {JSON.parse(localStorage.getItem("u") || "{}").university_id || "-"}</p>
@@ -493,6 +500,7 @@ function Seller() {
       </form>
       <div className="card">
         <strong>{t("availablePayout")}: ৳{available.toFixed(2)}</strong>
+        <p className="tag">Total earned: ৳{Number(data.wallet?.total_earned || 0).toFixed(2)} · Reserved/withdrawn: ৳{Number(data.wallet?.reserved || 0).toFixed(2)}</p>
         {data.orders.filter((o) => o.status === "approved").map((o) => (
           <p className="tag" key={o.id}>৳{o.gross_amount.toFixed(2)} - {t("commission")}: ৳{o.commission_amount.toFixed(2)} = ৳{Number(o.payout_amount || 0).toFixed(2)}</p>
         ))}
