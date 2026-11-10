@@ -58,6 +58,7 @@ const Header = () => {
             <Link to="/orders">{t("orders")}</Link>
             <Link to="/account">{t("account")}</Link>
             <Notifications />
+            {user.role === "seller" && <Link to="/seller">{t("seller")}</Link>}
             {user.role === "admin" && <Link to="/admin">{t("admin")}</Link>}
             <button
               className="link"
@@ -315,13 +316,14 @@ function Login() {
   );
 }
 function Account() {
-  const { notify, t } = useApp();
+  const { notify, t, user } = useApp();
   const [f, setF] = useState({
     current_password: "",
     new_password: "",
     confirm_password: "",
   });
   const [busy, setBusy] = useState(false);
+  const [sellerForm, setSellerForm] = useState({ university: "", reason: "" });
   const set = (key) => (e) => setF({ ...f, [key]: e.target.value });
   const submit = async (e) => {
     e.preventDefault();
@@ -334,6 +336,16 @@ function Account() {
       notify(x.message);
     } finally {
       setBusy(false);
+    }
+  };
+  const applySeller = async (e) => {
+    e.preventDefault();
+    try {
+      await api("seller/apply", "POST", sellerForm);
+      setSellerForm({ university: "", reason: "" });
+      notify(t("applicationSent"));
+    } catch (x) {
+      notify(x.message);
     }
   };
   return (
@@ -351,6 +363,89 @@ function Account() {
           autoComplete="new-password" />
         <button disabled={busy}>{busy ? t("submitting") : t("update")}</button>
       </form>
+      {user?.role === "buyer" && (
+        <>
+          <h2>{t("applySeller")}</h2>
+          <form className="card narrow" onSubmit={applySeller}>
+            <input required value={sellerForm.university} onChange={(e) => setSellerForm({ ...sellerForm, university: e.target.value })} placeholder={t("university")} />
+            <textarea required value={sellerForm.reason} onChange={(e) => setSellerForm({ ...sellerForm, reason: e.target.value })} placeholder={t("applicationReason")} />
+            <button>{t("apply")}</button>
+          </form>
+        </>
+      )}
+    </>
+  );
+}
+function Seller() {
+  const { notify, t } = useApp();
+  const [data, setData] = useState(null);
+  const [f, setF] = useState({ title: "", category: "", description: "", price_code: "", price_consult: "", preview_url: "", cover_url: "" });
+  const [editingId, setEditingId] = useState(null);
+  const [amount, setAmount] = useState("");
+  const load = () => api("seller/dashboard").then(setData).catch(() => setData({ projects: [], orders: [] }));
+  useEffect(load, []);
+  const set = (key) => (e) => setF({ ...f, [key]: e.target.value });
+  const save = async (e) => {
+    e.preventDefault();
+    try {
+      await api(editingId ? "seller/projects/" + editingId : "seller/projects", editingId ? "PUT" : "POST", f);
+      setF({ title: "", category: "", description: "", price_code: "", price_consult: "", preview_url: "", cover_url: "" });
+      setEditingId(null);
+      notify(t("updated"));
+      load();
+    } catch (x) { notify(x.message); }
+  };
+  const request = async (e) => {
+    e.preventDefault();
+    try { await api("seller/payout-requests", "POST", { amount }); setAmount(""); notify(t("updated")); load(); }
+    catch (x) { notify(x.message); }
+  };
+  const editProject = (project) => {
+    setEditingId(project.id);
+    setF({
+      title: project.title || "",
+      category: project.category || "",
+      description: project.description || "",
+      price_code: project.price_code ?? "",
+      price_consult: project.price_consult ?? "",
+      preview_url: project.preview_url || "",
+      cover_url: project.cover_url || "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  if (!data) return <p>{t("loading")}</p>;
+  const available = data.orders.filter((o) => o.status === "approved" && o.payout_status === "unpaid").reduce((sum, o) => sum + Number(o.payout_amount || 0), 0);
+  return (
+    <>
+      <h1>{t("sellerDashboard")}</h1>
+      <h2>{t("sellerProjects")}</h2>
+      <form className="card" onSubmit={save}>
+        <input required value={f.title} onChange={set("title")} placeholder={t("title")} />
+        <input required value={f.category} onChange={set("category")} placeholder={t("category")} />
+        <textarea value={f.description} onChange={set("description")} placeholder={t("description")} />
+        <input required type="number" min="0" value={f.price_code} onChange={set("price_code")} placeholder={t("codePrice")} />
+        <input required type="number" min="0" value={f.price_consult} onChange={set("price_consult")} placeholder={t("consultPrice")} />
+        <input type="url" value={f.preview_url} onChange={set("preview_url")} placeholder={t("previewUrl")} />
+        <input type="url" value={f.cover_url} onChange={set("cover_url")} placeholder={t("cover")} />
+        <div className="row">
+          <button>{editingId ? t("update") : t("add")}</button>
+          {editingId && <button type="button" className="alt" onClick={() => { setEditingId(null); setF({ title: "", category: "", description: "", price_code: "", price_consult: "", preview_url: "", cover_url: "" }); }}>{t("cancelEdit")}</button>}
+        </div>
+      </form>
+      <div className="card">
+        <strong>{t("availablePayout")}: ৳{available.toFixed(2)}</strong>
+        <form className="row" onSubmit={request}>
+          <input required type="number" min="1" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={t("payout")} />
+          <button>{t("requestPayout")}</button>
+        </form>
+      </div>
+      <div className="grid">{data.projects.map((p) => (
+        <div className="card" key={p.id}>
+          <strong>{p.title}</strong>
+          <p className="tag">{p.category}</p>
+          <button className="sm" onClick={() => editProject(p)}>{t("edit")}</button>
+        </div>
+      ))}</div>
     </>
   );
 }
@@ -428,6 +523,10 @@ export default function App() {
             <Route
               path="/orders"
               element={user ? <Orders /> : <Navigate to="/login" />}
+            />
+            <Route
+              path="/seller"
+              element={user?.role === "seller" ? <Seller /> : <Navigate to="/account" />}
             />
             <Route
               path="/admin"

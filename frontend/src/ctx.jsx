@@ -39,6 +39,12 @@ const translations = {
     broadcast: "সব ইউজারকে বার্তা", notificationTitle: "শিরোনাম", notificationMessage: "বার্তা",
     sendNotification: "বার্তা পাঠান", sent: "বার্তা পাঠানো হয়েছে",
     livePreview: "লাইভ প্রিভিউ", previewUrl: "Deployed demo URL (source code নয়)",
+    seller: "Seller", sellerDashboard: "Seller dashboard", applySeller: "Seller হতে আবেদন",
+    university: "University", applicationReason: "কেন project sell করতে চান?",
+    apply: "আবেদন করুন", applicationSent: "Application জমা হয়েছে", sellerProjects: "আপনার প্রজেক্ট",
+    payout: "Payout", requestPayout: "Payout request", availablePayout: "Available payout",
+    sellerApplications: "Seller applications", approve: "Approve", reject: "Reject",
+    payoutRequests: "Payout requests", markPaid: "Mark paid",
   },
   en: {
     projects: "Projects", orders: "My orders", loginRegister: "Login / Register",
@@ -69,6 +75,12 @@ const translations = {
     broadcast: "Message all users", notificationTitle: "Title", notificationMessage: "Message",
     sendNotification: "Send notification", sent: "Notification sent",
     livePreview: "Live preview", previewUrl: "Deployed demo URL (not source code)",
+    seller: "Seller", sellerDashboard: "Seller dashboard", applySeller: "Apply to become a seller",
+    university: "University", applicationReason: "Why do you want to sell projects?",
+    apply: "Apply", applicationSent: "Application submitted", sellerProjects: "Your projects",
+    payout: "Payout", requestPayout: "Request payout", availablePayout: "Available payout",
+    sellerApplications: "Seller applications", approve: "Approve", reject: "Reject",
+    payoutRequests: "Payout requests", markPaid: "Mark paid",
   },
 };
 export function AppProvider({ children }) {

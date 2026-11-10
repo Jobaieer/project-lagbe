@@ -74,10 +74,14 @@ export default function Admin() {
   const [f, setF] = useState(E0);
   const [editingId, setEditingId] = useState(null);
   const [message, setMessage] = useState({ title: "", body: "" });
+  const [applications, setApplications] = useState([]);
+  const [payouts, setPayouts] = useState([]);
   const load = useCallback(() => {
-    Promise.all([api("admin/orders"), api("admin/projects")]).then(([o, p]) => {
+    Promise.all([api("admin/orders"), api("admin/projects"), api("admin/seller-applications"), api("admin/payout-requests")]).then(([o, p, a, payouts]) => {
       setO(o);
       setP(p);
+      setApplications(a);
+      setPayouts(payouts);
     });
   }, []);
   useEffect(load, [load]);
@@ -138,6 +142,20 @@ export default function Admin() {
     } catch (x) {
       notify(x.message);
     }
+  };
+  const reviewSeller = async (id, status) => {
+    try {
+      await api("admin/seller-applications/" + id, "PUT", { status });
+      notify(t("updated"));
+      load();
+    } catch (x) { notify(x.message); }
+  };
+  const reviewPayout = async (id, status) => {
+    try {
+      await api("admin/payout-requests/" + id, "PUT", { status });
+      notify(t("updated"));
+      load();
+    } catch (x) { notify(x.message); }
   };
   return (
     <>
@@ -244,6 +262,29 @@ export default function Admin() {
             <button className="sm alt" onClick={() => del(p.id)}>
               {t("delete")}
             </button>
+          </div>
+        </div>
+      ))}
+      <h3>{t("sellerApplications")}</h3>
+      {applications.map((application) => (
+        <div className="card mb" key={application.id}>
+          <strong>{application.users?.name}</strong>
+          <span className="tag">{application.users?.email} · {application.university}</span>
+          <p>{application.reason}</p>
+          <div className="row">
+            <button className="sm" onClick={() => reviewSeller(application.id, "approved")}>{t("approve")}</button>
+            <button className="sm alt" onClick={() => reviewSeller(application.id, "rejected")}>{t("reject")}</button>
+          </div>
+        </div>
+      ))}
+      <h3>{t("payoutRequests")}</h3>
+      {payouts.map((request) => (
+        <div className="card mb" key={request.id}>
+          <strong>{request.users?.name}</strong>
+          <span className="tag">{request.users?.email} · ৳{request.amount}</span>
+          <div className="row">
+            <button className="sm" onClick={() => reviewPayout(request.id, "paid")}>{t("markPaid")}</button>
+            <button className="sm alt" onClick={() => reviewPayout(request.id, "rejected")}>{t("reject")}</button>
           </div>
         </div>
       ))}

@@ -50,6 +50,7 @@ const tok = (u) => ({
     expiresIn: "7d",
   }),
   role: u.role,
+  seller_status: u.seller_status || "none",
   name: u.name,
 });
 const auth = (role) => (req, r, n) => {
@@ -60,6 +61,13 @@ const auth = (role) => (req, r, n) => {
   } catch {
     bad(r, "আগে Login করুন", 401);
   }
+};
+const sellerAuth = (req, r, n) => {
+  auth()(req, r, () => {
+    if (!["seller", "admin"].includes(req.u.role))
+      return bad(r, "Seller approval required", 403);
+    n();
+  });
 };
 const asyncRoute = (fn) => (req, res, next) =>
   Promise.resolve(fn(req, res, next)).catch(next);
@@ -80,6 +88,7 @@ const orderView = (o, users, projects) => ({
   title: projects.get(o.project_id)?.title,
 });
 const notification = (user_id, title, body) => ({ user_id, title, body });
+const A = auth("admin");
 
 async function ensureAdmin() {
   if (!db) throw new Error("Supabase environment variables are missing");
@@ -137,7 +146,7 @@ app.post(
         email: email.toLowerCase(),
         pass: bcrypt.hashSync(password, 10),
       })
-      .select("id,name,role")
+      .select("id,name,role,seller_status")
       .single();
     if (result.error?.code === "23505") return bad(r, "এই ইমেইল আগেই আছে");
     const u = unwrap(result);
@@ -150,13 +159,45 @@ app.post(
   asyncRoute(async (req, r) => {
     const result = await db
       .from("users")
-      .select("id,name,role,pass")
+      .select("id,name,role,seller_status,pass")
       .eq("email", (req.body.email || "").toLowerCase())
       .maybeSingle();
     const u = unwrap(result);
     u && bcrypt.compareSync(req.body.password || "", u.pass)
       ? r.json(tok(u))
       : bad(r, "ইমেইল/পাসওয়ার্ড ভুল");
+  }),
+);
+app.post(
+  "/api/seller/apply",
+  auth(),
+  asyncRoute(async (req, r) => {
+    const university = (req.body.university || "").trim();
+    const reason = (req.body.reason || "").trim();
+    if (!university || !reason) return bad(r, "University ও কারণ দিন");
+    const user = unwrap(await db.from("users").select("role,seller_status").eq("id", req.u.id).single());
+    if (user.role === "seller" || user.seller_status === "approved")
+      return bad(r, "আপনি ইতিমধ্যে seller");
+    if (user.seller_status === "pending") return bad(r, "আপনার application review হচ্ছে");
+    unwrap(
+      await db.from("seller_applications").upsert(
+        { user_id: req.u.id, university, reason, status: "pending" },
+        { onConflict: "user_id" },
+      ),
+    );
+    unwrap(await db.from("users").update({ seller_status: "pending" }).eq("id", req.u.id));
+    r.json({ ok: 1 });
+  }),
+);
+app.get(
+  "/api/seller/status",
+  auth(),
+  asyncRoute(async (req, r) => {
+    r.json(
+      unwrap(
+        await db.from("users").select("role,seller_status").eq("id", req.u.id).single(),
+      ),
+    );
   }),
 );
 app.put(
@@ -240,6 +281,15 @@ app.post(
       !(trx_id || "").trim()
     )
       return bad(r, "Transaction ID দিন");
+    const project = unwrap(
+      await db
+        .from("projects")
+        .select("seller_id,price_code,price_consult,commission_percent")
+        .eq("id", project_id)
+        .eq("active", true)
+        .single(),
+    );
+    const price = option === "consult" ? project.price_consult : project.price_code;
     unwrap(
       await db.from("orders").insert({
         user_id: req.u.id,
@@ -248,6 +298,10 @@ app.post(
         method,
         trx_id: trx_id.trim(),
         note: note || "",
+        seller_id: project.seller_id,
+        payout_amount: project.seller_id
+          ? Number(price) * (1 - Number(project.commission_percent || 20) / 100)
+          : null,
       }),
     );
     const admins = unwrap(await db.from("users").select("id").eq("role", "admin"));
@@ -287,7 +341,124 @@ app.get(
     );
   }),
 );
-const A = auth("admin");
+app.get(
+  "/api/seller/dashboard",
+  sellerAuth,
+  asyncRoute(async (req, r) => {
+    const projects = unwrap(await db.from("projects").select("*").eq("seller_id", req.u.id).eq("active", true).order("id", { ascending: false }));
+    const orders = unwrap(await db.from("orders").select("id,project_id,option,status,payout_amount,payout_status,created").eq("seller_id", req.u.id).order("id", { ascending: false }));
+    r.json({ projects, orders });
+  }),
+);
+app.post(
+  "/api/seller/projects",
+  sellerAuth,
+  asyncRoute(async (req, r) => {
+    const b = req.body;
+    if (!b.title || !(+b.price_code >= 0) || !(+b.price_consult >= 0))
+      return bad(r, "Title ও দাম দিন");
+    if (!validPreviewUrl(b.preview_url)) return bad(r, "শুধু deployed demo-এর HTTPS preview URL দিন");
+    r.json({
+      project: unwrap(
+        await db.from("projects").insert({
+          seller_id: req.u.id,
+          title: b.title,
+          category: b.category || "অন্যান্য",
+          cover_url: b.cover_url || null,
+          preview_url: b.preview_url || null,
+          course: b.course || "",
+          tech: b.tech || "",
+          description: b.description || "",
+          price_code: +b.price_code,
+          price_consult: +b.price_consult,
+          download_url: b.download_url || null,
+          commission_percent: 20,
+        }).select("*").single(),
+      ),
+    });
+  }),
+);
+app.put(
+  "/api/seller/projects/:id",
+  sellerAuth,
+  asyncRoute(async (req, r) => {
+    const b = req.body;
+    if (!b.title || !(+b.price_code >= 0) || !(+b.price_consult >= 0))
+      return bad(r, "Title ও দাম দিন");
+    if (!validPreviewUrl(b.preview_url)) return bad(r, "শুধু deployed demo-এর HTTPS preview URL দিন");
+    unwrap(
+      await db.from("projects").update({
+        title: b.title, category: b.category || "অন্যান্য", cover_url: b.cover_url || null,
+        preview_url: b.preview_url || null, course: b.course || "", tech: b.tech || "",
+        description: b.description || "", price_code: +b.price_code, price_consult: +b.price_consult,
+        download_url: b.download_url || null,
+      }).eq("id", req.params.id).eq("seller_id", req.u.id),
+    );
+    r.json({ ok: 1 });
+  }),
+);
+app.post(
+  "/api/seller/payout-requests",
+  sellerAuth,
+  asyncRoute(async (req, r) => {
+    const amount = Number(req.body.amount);
+    if (!(amount > 0)) return bad(r, "Valid amount দিন");
+    const unpaid = unwrap(await db.from("orders").select("payout_amount").eq("seller_id", req.u.id).eq("status", "approved").eq("payout_status", "unpaid"));
+    const available = unpaid.reduce((sum, order) => sum + Number(order.payout_amount || 0), 0);
+    if (amount > available) return bad(r, "Available payout-এর চেয়ে বেশি চাওয়া যাবে না");
+    unwrap(await db.from("payout_requests").insert({ seller_id: req.u.id, amount }));
+    unwrap(await db.from("orders").update({ payout_status: "requested" }).eq("seller_id", req.u.id).eq("status", "approved").eq("payout_status", "unpaid"));
+    r.json({ ok: 1 });
+  }),
+);
+app.get(
+  "/api/admin/seller-applications",
+  A,
+  asyncRoute(async (_, r) => {
+    r.json(unwrap(await db.from("seller_applications").select("*,users(name,email)").eq("status", "pending").order("id", { ascending: false })));
+  }),
+);
+app.put(
+  "/api/admin/seller-applications/:id",
+  A,
+  asyncRoute(async (req, r) => {
+    if (!["approved", "rejected"].includes(req.body.status)) return bad(r, "Invalid status");
+    const application = unwrap(await db.from("seller_applications").select("user_id").eq("id", req.params.id).single());
+    unwrap(await db.from("seller_applications").update({ status: req.body.status }).eq("id", req.params.id));
+    unwrap(await db.from("users").update({ role: req.body.status === "approved" ? "seller" : "buyer", seller_status: req.body.status }).eq("id", application.user_id));
+    unwrap(
+      await db.from("notifications").insert(
+        notification(
+          application.user_id,
+          req.body.status === "approved" ? "Seller application approved" : "Seller application rejected",
+          req.body.status === "approved"
+            ? "You can now add and sell your own projects."
+            : "Your seller application was not approved.",
+        ),
+      ),
+    );
+    r.json({ ok: 1 });
+  }),
+);
+app.get(
+  "/api/admin/payout-requests",
+  A,
+  asyncRoute(async (_, r) => {
+    r.json(unwrap(await db.from("payout_requests").select("*,users(name,email)").eq("status", "pending").order("id", { ascending: false })));
+  }),
+);
+app.put(
+  "/api/admin/payout-requests/:id",
+  A,
+  asyncRoute(async (req, r) => {
+    if (!["paid", "rejected"].includes(req.body.status)) return bad(r, "Invalid status");
+    const request = unwrap(await db.from("payout_requests").select("seller_id").eq("id", req.params.id).single());
+    unwrap(await db.from("payout_requests").update({ status: req.body.status }).eq("id", req.params.id));
+    if (req.body.status === "paid")
+      unwrap(await db.from("orders").update({ payout_status: "paid" }).eq("seller_id", request.seller_id).eq("payout_status", "requested"));
+    r.json({ ok: 1 });
+  }),
+);
 app.get(
   "/api/admin/orders",
   A,
@@ -343,7 +514,7 @@ app.post(
     const title = (req.body.title || "").trim();
     const body = (req.body.body || "").trim();
     if (!title || !body) return bad(r, "Title ও message দিন");
-    const users = unwrap(await db.from("users").select("id").eq("role", "user"));
+    const users = unwrap(await db.from("users").select("id").in("role", ["buyer", "seller"]));
     if (users.length)
       unwrap(
         await db
