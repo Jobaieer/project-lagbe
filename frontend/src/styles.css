@@ -62,6 +62,13 @@ nav a,
   padding: 0;
   font-size: inherit;
 }
+.lang {
+  padding: 5px 10px;
+  font-size: 13px;
+  background: transparent;
+  color: var(--ink);
+  border: 1px solid var(--line);
+}
 main {
   padding: 28px 5vw;
   max-width: 1100px;
@@ -77,6 +84,32 @@ h1 {
   color: var(--mut);
   margin: 0 0 20px;
 }
+.filters {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 20px;
+  max-width: 720px;
+}
+.filters .search {
+  margin: 0;
+  flex: 1;
+}
+.filters select {
+  width: auto;
+  min-width: 150px;
+  margin: 0;
+}
+.filters button {
+  white-space: nowrap;
+}
+.project-group {
+  margin-bottom: 28px;
+}
+.project-group h2 {
+  font-size: 24px;
+  margin: 0 0 10px;
+}
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(290px, 1fr));
@@ -87,6 +120,22 @@ h1 {
   border: 1px solid var(--line);
   border-radius: 14px;
   padding: 18px;
+}
+.cover {
+  display: block;
+  width: calc(100% + 36px);
+  height: 160px;
+  object-fit: cover;
+  margin: -18px -18px 16px;
+  border-radius: 14px 14px 0 0;
+}
+.cover.placeholder {
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, var(--red), var(--org));
+  color: #fff;
+  font-size: 30px;
+  font-weight: 800;
 }
 .card h3 {
   margin: 0 0 4px;
@@ -205,4 +254,16 @@ th {
 :focus-visible {
   outline: 3px solid var(--org);
   outline-offset: 2px;
+}
+@media (max-width: 620px) {
+  .filters {
+    align-items: stretch;
+    flex-wrap: wrap;
+  }
+  .filters .search {
+    flex-basis: 100%;
+  }
+  .filters select {
+    flex: 1;
+  }
 }

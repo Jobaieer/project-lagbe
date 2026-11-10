@@ -9,12 +9,59 @@ import {
 import { api, setToken } from "./api";
 const Ctx = createContext();
 export const useApp = () => useContext(Ctx);
+const translations = {
+  bn: {
+    projects: "প্রজেক্ট", orders: "আমার অর্ডার", loginRegister: "Login / Register",
+    logout: "Logout", admin: "Admin", hero: "CSE Lab প্রজেক্ট লাগবে?",
+    sub: "রেডি সোর্স কোড নিন, চাইলে লাইভ ব্যাখ্যাসহ বুঝে নিন।", search: "সার্চ",
+    searchPlaceholder: "প্রজেক্ট, কোর্স বা টেক-স্ট্যাক খুঁজুন…", allCategories: "সব ক্যাটাগরি",
+    loading: "লোড হচ্ছে…", notFound: "কিছু পাওয়া যায়নি।", code: "শুধু কোড",
+    consult: "কোড + লাইভ কনসাল্টেন্সি", orderSent: "অর্ডার জমা হয়েছে। Approve-এর অপেক্ষা করুন।",
+    sourceCode: "শুধু সোর্স কোড", cancel: "বাতিল", order: "অর্ডার করুন", submitting: "জমা হচ্ছে…",
+    transaction: "Transaction ID", note: "নোট (ঐচ্ছিক)", sessionNote: "কখন লাইভ সেশন চান? (সময় / WhatsApp নম্বর)",
+    register: "Register", login: "Login", name: "নাম", password: "Password (৬+ অক্ষর)",
+    existing: "আগে থেকেই অ্যাকাউন্ট আছে", newAccount: "নতুন অ্যাকাউন্ট", myOrders: "আমার অর্ডার",
+    noOrders: "এখনো কোনো অর্ডার নেই।", viewProjects: "প্রজেক্ট দেখুন", project: "প্রজেক্ট",
+    type: "ধরন", status: "স্ট্যাটাস", access: "অ্যাক্সেস", download: "ডাউনলোড",
+    liveLink: "লাইভ সেশন লিংক", pending: "অপেক্ষমান", approved: "Approved", rejected: "Rejected",
+    manageOrders: "অর্ডার", pendingCount: "অপেক্ষমান", newProject: "নতুন প্রজেক্ট",
+    add: "যোগ করুন", projectList: "প্রজেক্ট লিস্ট", delete: "Delete", payment: "Payment",
+    user: "ইউজার", action: "অ্যাকশন", title: "Title", course: "Course (e.g. Networks Lab)",
+    tech: "Tech stack", description: "Description", codePrice: "Code price ৳",
+    consultPrice: "Code + consultancy price ৳", category: "Category", cover: "Cover photo URL",
+    downloadUrl: "Download link (private Drive/GitHub)", meet: "Meet/Zoom লিংক",
+    updated: "আপডেট হয়েছে", confirmDelete: "মুছে ফেলবেন?", language: "English",
+  },
+  en: {
+    projects: "Projects", orders: "My orders", loginRegister: "Login / Register",
+    logout: "Logout", admin: "Admin", hero: "Need a CSE Lab project?",
+    sub: "Get ready source code with optional live explanation.", search: "Search",
+    searchPlaceholder: "Search projects, courses or tech stacks…", allCategories: "All categories",
+    loading: "Loading…", notFound: "No projects found.", code: "Code only",
+    consult: "Code + live consultation", orderSent: "Order submitted. Please wait for approval.",
+    sourceCode: "Source code only", cancel: "Cancel", order: "Place order", submitting: "Submitting…",
+    transaction: "Transaction ID", note: "Note (optional)", sessionNote: "When would you like the live session? (time / WhatsApp)",
+    register: "Register", login: "Login", name: "Name", password: "Password (6+ characters)",
+    existing: "Already have an account", newAccount: "Create an account", myOrders: "My orders",
+    noOrders: "No orders yet.", viewProjects: "Browse projects", project: "Project",
+    type: "Type", status: "Status", access: "Access", download: "Download",
+    liveLink: "Live session link", pending: "Pending", approved: "Approved", rejected: "Rejected",
+    manageOrders: "Orders", pendingCount: "pending", newProject: "New project",
+    add: "Add project", projectList: "Project list", delete: "Delete", payment: "Payment",
+    user: "User", action: "Action", title: "Title", course: "Course (e.g. Networks Lab)",
+    tech: "Tech stack", description: "Description", codePrice: "Code price ৳",
+    consultPrice: "Code + consultancy price ৳", category: "Category", cover: "Cover photo URL",
+    downloadUrl: "Download link (private Drive/GitHub)", meet: "Meet/Zoom link",
+    updated: "Updated", confirmDelete: "Delete this project?", language: "বাংলা",
+  },
+};
 export function AppProvider({ children }) {
   const [user, setUser] = useState(() =>
     JSON.parse(localStorage.getItem("u") || "null"),
   );
   const [toast, setToast] = useState("");
   const [cfg, setCfg] = useState({});
+  const [lang, setLang] = useState(() => localStorage.getItem("lang") || "bn");
   useEffect(() => {
     api("config")
       .then(setCfg)
@@ -35,9 +82,17 @@ export function AppProvider({ children }) {
     localStorage.removeItem("u");
     setUser(null);
   }, []);
+  const toggleLanguage = useCallback(() => {
+    setLang((current) => {
+      const next = current === "bn" ? "en" : "bn";
+      localStorage.setItem("lang", next);
+      return next;
+    });
+  }, []);
+  const t = useCallback((key) => translations[lang][key] || key, [lang]);
   const v = useMemo(
-    () => ({ user, login, logout, notify, cfg }),
-    [user, login, logout, notify, cfg],
+    () => ({ user, login, logout, notify, cfg, lang, t, toggleLanguage }),
+    [user, login, logout, notify, cfg, lang, t, toggleLanguage],
   );
   return (
     <Ctx.Provider value={v}>

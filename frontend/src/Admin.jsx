@@ -2,7 +2,7 @@ import { useEffect, useState, useCallback } from "react";
 import { api } from "./api";
 import { useApp } from "./ctx";
 function Row({ o, reload }) {
-  const { notify } = useApp();
+  const { notify, t } = useApp();
   const [ml, setMl] = useState(o.meet_link || "");
   const set = async (status) => {
     try {
@@ -10,7 +10,7 @@ function Row({ o, reload }) {
         status,
         meet_link: o.option === "consult" && status === "approved" ? ml : "",
       });
-      notify("আপডেট হয়েছে");
+      notify(t("updated"));
       reload();
     } catch (e) {
       notify(e.message);
@@ -40,15 +40,15 @@ function Row({ o, reload }) {
           <input
             value={ml}
             onChange={(e) => setMl(e.target.value)}
-            placeholder="Meet/Zoom লিংক"
+            placeholder={t("meet")}
           />
         )}
         <div className="row">
           <button className="sm" onClick={() => set("approved")}>
-            Approve
+            {t("approved")}
           </button>
           <button className="sm alt" onClick={() => set("rejected")}>
-            Reject
+            {t("rejected")}
           </button>
         </div>
       </td>
@@ -57,6 +57,8 @@ function Row({ o, reload }) {
 }
 const E0 = {
   title: "",
+  category: "",
+  cover_url: "",
   course: "",
   tech: "",
   description: "",
@@ -65,7 +67,7 @@ const E0 = {
   download_url: "",
 };
 export default function Admin() {
-  const { notify } = useApp();
+  const { notify, t } = useApp();
   const [O, setO] = useState([]);
   const [P, setP] = useState([]);
   const [f, setF] = useState(E0);
@@ -81,14 +83,14 @@ export default function Admin() {
     try {
       await api("admin/projects", "POST", f);
       setF(E0);
-      notify("প্রজেক্ট যোগ হয়েছে");
+      notify(t("updated"));
       load();
     } catch (x) {
       notify(x.message);
     }
   };
   const del = async (id) => {
-    if (confirm("মুছে ফেলবেন?")) {
+    if (confirm(t("confirmDelete"))) {
       await api("admin/projects/" + id, "DELETE");
       load();
     }
@@ -96,19 +98,19 @@ export default function Admin() {
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   return (
     <>
-      <h1>Admin</h1>
+      <h1>{t("admin")}</h1>
       <h3>
-        অর্ডার ({O.filter((o) => o.status === "pending").length} অপেক্ষমান)
+        {t("manageOrders")} ({O.filter((o) => o.status === "pending").length} {t("pendingCount")})
       </h3>
       <div className="box">
         <table>
           <thead>
             <tr>
-              <th>ইউজার</th>
-              <th>প্রজেক্ট</th>
-              <th>Payment</th>
-              <th>নোট</th>
-              <th>অ্যাকশন</th>
+              <th>{t("user")}</th>
+              <th>{t("project")}</th>
+              <th>{t("payment")}</th>
+              <th>{t("note")}</th>
+              <th>{t("action")}</th>
             </tr>
           </thead>
           <tbody>
@@ -118,24 +120,36 @@ export default function Admin() {
           </tbody>
         </table>
       </div>
-      <h3>নতুন প্রজেক্ট</h3>
+      <h3>{t("newProject")}</h3>
       <form className="card" onSubmit={add}>
         <input
           required
           value={f.title}
           onChange={set("title")}
-          placeholder="Title"
+          placeholder={t("title")}
+        />
+        <input
+          required
+          value={f.category}
+          onChange={set("category")}
+          placeholder={t("category")}
+        />
+        <input
+          value={f.cover_url}
+          onChange={set("cover_url")}
+          placeholder={t("cover")}
+          type="url"
         />
         <input
           value={f.course}
           onChange={set("course")}
-          placeholder="Course (e.g. Networks Lab)"
+          placeholder={t("course")}
         />
-        <input value={f.tech} onChange={set("tech")} placeholder="Tech stack" />
+        <input value={f.tech} onChange={set("tech")} placeholder={t("tech")} />
         <textarea
           value={f.description}
           onChange={set("description")}
-          placeholder="Description"
+          placeholder={t("description")}
         />
         <input
           required
@@ -143,7 +157,7 @@ export default function Admin() {
           min="0"
           value={f.price_code}
           onChange={set("price_code")}
-          placeholder="Code price ৳"
+          placeholder={t("codePrice")}
         />
         <input
           required
@@ -151,21 +165,21 @@ export default function Admin() {
           min="0"
           value={f.price_consult}
           onChange={set("price_consult")}
-          placeholder="Code + consultancy price ৳"
+          placeholder={t("consultPrice")}
         />
         <input
           value={f.download_url}
           onChange={set("download_url")}
-          placeholder="Download link (private Drive/GitHub)"
+          placeholder={t("downloadUrl")}
         />
-        <button>যোগ করুন</button>
+        <button>{t("add")}</button>
       </form>
-      <h3>প্রজেক্ট লিস্ট</h3>
+      <h3>{t("projectList")}</h3>
       {P.map((p) => (
         <div className="card mb" key={p.id}>
           {p.title} — ৳{p.price_code} / ৳{p.price_consult}{" "}
           <button className="sm alt" onClick={() => del(p.id)}>
-            Delete
+            {t("delete")}
           </button>
         </div>
       ))}

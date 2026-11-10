@@ -143,7 +143,7 @@ app.get(
       unwrap(
         await db
           .from("projects")
-          .select("id,title,course,tech,description,price_code,price_consult")
+          .select("id,title,category,cover_url,course,tech,description,price_code,price_consult")
           .eq("active", true)
           .order("id", { ascending: false }),
       ),
@@ -252,6 +252,8 @@ app.post(
     unwrap(
       await db.from("projects").insert({
         title: b.title,
+        category: b.category || "অন্যান্য",
+        cover_url: b.cover_url || null,
         course: b.course,
         tech: b.tech,
         description: b.description,
