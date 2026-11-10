@@ -213,14 +213,19 @@ export default function Admin() {
       </form>
       <h3>{t("projectList")}</h3>
       {P.map((p) => (
-        <div className="card mb" key={p.id}>
-          {p.title} — ৳{p.price_code} / ৳{p.price_consult}{" "}
-          <button className="sm" onClick={() => edit(p)}>
-            {t("edit")}
-          </button>{" "}
-          <button className="sm alt" onClick={() => del(p.id)}>
-            {t("delete")}
-          </button>
+        <div className="card mb project-admin-row" key={p.id}>
+          <div>
+            <strong>{p.title}</strong>
+            <span className="tag">{p.category} · ৳{p.price_code} / ৳{p.price_consult}</span>
+          </div>
+          <div className="row">
+            <button className="sm" onClick={() => edit(p)}>
+              {t("edit")}
+            </button>
+            <button className="sm alt" onClick={() => del(p.id)}>
+              {t("delete")}
+            </button>
+          </div>
         </div>
       ))}
     </>

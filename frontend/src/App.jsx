@@ -7,9 +7,10 @@ const Header = () => {
   const { user, logout, lang, t, toggleLanguage } = useApp();
   const go = useNavigate();
   return (
-    <header>
+    <header className="site-header">
       <Link className="logo" to="/">
-        Project Lagbe?
+        <span className="logo-mark">PL</span>
+        <span>Project Lagbe?</span>
       </Link>
       <nav>
         <Link to="/">{t("projects")}</Link>
@@ -41,18 +42,21 @@ const Header = () => {
 const Card = memo(({ p, onBuy }) => {
   const { t } = useApp();
   return (
-  <article className="card">
+  <article className="card project-card">
     {p.cover_url ? (
       <img className="cover" src={p.cover_url} alt={p.title} />
     ) : (
       <div className="cover placeholder" aria-hidden="true">Project</div>
     )}
-    <h3>{p.title}</h3>
+    <div className="project-title">
+      <h3>{p.title}</h3>
+      <span className="project-badge">{p.category || "Project"}</span>
+    </div>
     <div className="tag">
       {p.course} • {p.tech}
     </div>
     <p>{p.description}</p>
-    <div className="row">
+    <div className="row card-actions">
       <button className="alt" onClick={() => onBuy(p, "code")}>
         {t("code")} ৳{p.price_code}
       </button>
@@ -85,9 +89,19 @@ function Home() {
   }, [P, query, category]);
   const onBuy = (p, option) => (user ? setBuy({ p, option }) : go("/login"));
   return (
-    <>
-      <h1>{t("hero")}</h1>
-      <p className="sub">{t("sub")}</p>
+    <div className="home">
+      <section className="hero">
+        <div>
+          <span className="eyebrow">{t("projects")}</span>
+          <h1>{t("hero")}</h1>
+          <p className="sub">{t("sub")}</p>
+        </div>
+        <div className="hero-art" aria-hidden="true">
+          <span>✦</span>
+          <span>⌘</span>
+          <span>↗</span>
+        </div>
+      </section>
       <form className="filters" onSubmit={(e) => { e.preventDefault(); setQuery(s); }}>
         <input
           className="search"
@@ -103,7 +117,7 @@ function Home() {
         <button type="submit">{t("search")}</button>
       </form>
       {!P ? (
-        <p>{t("loading")}</p>
+        <div className="loading-card"><span className="spinner" />{t("loading")}</div>
       ) : list.length ? (
         <div className="project-groups">
           {[...new Set(list.map((p) => p.category || "অন্যান্য"))].map((group) => (
@@ -118,10 +132,13 @@ function Home() {
           ))}
         </div>
       ) : (
-        <p>{t("notFound")}</p>
+        <div className="empty-state">
+          <strong>{t("notFound")}</strong>
+          <span>{t("searchPlaceholder")}</span>
+        </div>
       )}
       {buy && <Buy {...buy} onClose={() => setBuy(null)} />}
-    </>
+    </div>
   );
 }
 function Buy({ p, option, onClose }) {
