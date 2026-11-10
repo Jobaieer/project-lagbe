@@ -335,6 +335,17 @@ h1 {
   min-height: 52px;
   color: var(--mut);
 }
+.preview-link {
+  display: inline-flex;
+  margin-top: 2px;
+  color: var(--org);
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.preview-link:hover {
+  text-decoration: underline;
+}
 .card-actions {
   align-items: stretch;
 }

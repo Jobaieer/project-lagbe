@@ -96,6 +96,17 @@ const Card = memo(({ p, onBuy }) => {
       {p.course} • {p.tech}
     </div>
     <p>{p.description}</p>
+    {p.preview_url && (
+      <a
+        className="preview-link"
+        href={p.preview_url}
+        target="_blank"
+        rel="noreferrer noopener"
+        referrerPolicy="no-referrer"
+      >
+        {t("livePreview")} ↗
+      </a>
+    )}
     <div className="row card-actions">
       <button className="alt" onClick={() => onBuy(p, "code")}>
         {t("code")} ৳{p.price_code}

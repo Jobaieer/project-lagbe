@@ -21,6 +21,30 @@ app.set("trust proxy", 1);
 app.use(compression(), express.json({ limit: "50kb" }));
 
 const bad = (r, m, c = 400) => r.status(c).json({ error: m });
+const validPreviewUrl = (value) => {
+  if (!value) return true;
+  try {
+    const url = new URL(value);
+    const host = url.hostname.toLowerCase();
+    const blockedHosts = [
+      "github.com",
+      "raw.githubusercontent.com",
+      "gitlab.com",
+      "bitbucket.org",
+    ];
+    const blockedPath = /\.(zip|rar|tar|gz|js|jsx|ts|tsx|py|sql)$/i.test(
+      url.pathname,
+    );
+    return (
+      (url.protocol === "https:" ||
+        (url.protocol === "http:" && ["localhost", "127.0.0.1"].includes(host))) &&
+      !blockedHosts.some((blocked) => host === blocked || host.endsWith("." + blocked)) &&
+      !blockedPath
+    );
+  } catch {
+    return false;
+  }
+};
 const tok = (u) => ({
   token: jwt.sign({ id: u.id, role: u.role, name: u.name }, S, {
     expiresIn: "7d",
@@ -198,7 +222,7 @@ app.get(
       unwrap(
         await db
           .from("projects")
-          .select("id,title,category,cover_url,course,tech,description,price_code,price_consult")
+          .select("id,title,category,cover_url,preview_url,course,tech,description,price_code,price_consult")
           .eq("active", true)
           .order("id", { ascending: false }),
       ),
@@ -350,11 +374,14 @@ app.post(
   asyncRoute(async (req, r) => {
     const b = req.body;
     if (!b.title || !(+b.price_code >= 0)) return bad(r, "Title ও দাম দিন");
+    if (!validPreviewUrl(b.preview_url))
+      return bad(r, "শুধু deployed demo-এর HTTPS preview URL দিন");
     unwrap(
       await db.from("projects").insert({
         title: b.title,
         category: b.category || "অন্যান্য",
         cover_url: b.cover_url || null,
+        preview_url: b.preview_url || null,
         course: b.course,
         tech: b.tech,
         description: b.description,
@@ -373,6 +400,8 @@ app.put(
     const b = req.body;
     if (!b.title || !(+b.price_code >= 0) || !(+b.price_consult >= 0))
       return bad(r, "Title ও দাম দিন");
+    if (!validPreviewUrl(b.preview_url))
+      return bad(r, "শুধু deployed demo-এর HTTPS preview URL দিন");
     unwrap(
       await db
         .from("projects")
@@ -380,6 +409,7 @@ app.put(
           title: b.title,
           category: b.category || "অন্যান্য",
           cover_url: b.cover_url || null,
+          preview_url: b.preview_url || null,
           course: b.course || "",
           tech: b.tech || "",
           description: b.description || "",

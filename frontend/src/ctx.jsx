@@ -38,6 +38,7 @@ const translations = {
     notifications: "নোটিফিকেশন", noNotifications: "কোনো নোটিফিকেশন নেই", markRead: "সব পড়া হয়েছে",
     broadcast: "সব ইউজারকে বার্তা", notificationTitle: "শিরোনাম", notificationMessage: "বার্তা",
     sendNotification: "বার্তা পাঠান", sent: "বার্তা পাঠানো হয়েছে",
+    livePreview: "লাইভ প্রিভিউ", previewUrl: "Deployed demo URL (source code নয়)",
   },
   en: {
     projects: "Projects", orders: "My orders", loginRegister: "Login / Register",
@@ -67,6 +68,7 @@ const translations = {
     notifications: "Notifications", noNotifications: "No notifications", markRead: "Mark all as read",
     broadcast: "Message all users", notificationTitle: "Title", notificationMessage: "Message",
     sendNotification: "Send notification", sent: "Notification sent",
+    livePreview: "Live preview", previewUrl: "Deployed demo URL (not source code)",
   },
 };
 export function AppProvider({ children }) {

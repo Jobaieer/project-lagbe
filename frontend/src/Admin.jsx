@@ -65,6 +65,7 @@ const E0 = {
   price_code: "",
   price_consult: "",
   download_url: "",
+  preview_url: "",
 };
 export default function Admin() {
   const { notify, t } = useApp();
@@ -119,6 +120,7 @@ export default function Admin() {
       price_code: project.price_code ?? "",
       price_consult: project.price_consult ?? "",
       download_url: project.download_url || "",
+      preview_url: project.preview_url || "",
     });
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
@@ -212,6 +214,12 @@ export default function Admin() {
           value={f.download_url}
           onChange={set("download_url")}
           placeholder={t("downloadUrl")}
+        />
+        <input
+          value={f.preview_url}
+          onChange={set("preview_url")}
+          placeholder={t("previewUrl")}
+          type="url"
         />
         <div className="row">
           <button>{editingId ? t("update") : t("add")}</button>
