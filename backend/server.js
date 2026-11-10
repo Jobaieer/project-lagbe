@@ -179,6 +179,7 @@ app.post(
         name: name.trim(),
         email: email.toLowerCase(),
         pass: bcrypt.hashSync(password, 10),
+        role: "buyer",
       })
       .select("id,name,role,seller_status")
       .single();

@@ -77,6 +77,7 @@ alter table public.orders add column if not exists referral_amount numeric(12,2)
 
 alter table public.users drop constraint if exists users_role_check;
 update public.users set role = 'buyer' where role = 'user';
+alter table public.users alter column role set default 'buyer';
 alter table public.users add constraint users_role_check check (role in ('buyer', 'seller', 'admin'));
 
 create table if not exists public.seller_applications (
