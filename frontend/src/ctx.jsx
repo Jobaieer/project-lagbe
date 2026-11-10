@@ -35,6 +35,9 @@ const translations = {
     newPassword: "নতুন পাসওয়ার্ড", confirmPassword: "নতুন পাসওয়ার্ড আবার লিখুন",
     passwordChanged: "পাসওয়ার্ড পরিবর্তন হয়েছে",
     projectFallback: "প্রজেক্ট", optionCode: "কোড", optionConsult: "কোড + লাইভ", otherCategory: "অন্যান্য",
+    notifications: "নোটিফিকেশন", noNotifications: "কোনো নোটিফিকেশন নেই", markRead: "সব পড়া হয়েছে",
+    broadcast: "সব ইউজারকে বার্তা", notificationTitle: "শিরোনাম", notificationMessage: "বার্তা",
+    sendNotification: "বার্তা পাঠান", sent: "বার্তা পাঠানো হয়েছে",
   },
   en: {
     projects: "Projects", orders: "My orders", loginRegister: "Login / Register",
@@ -61,6 +64,9 @@ const translations = {
     newPassword: "New password", confirmPassword: "Confirm new password",
     passwordChanged: "Password changed successfully",
     projectFallback: "Project", optionCode: "Code", optionConsult: "Code + live", otherCategory: "Other",
+    notifications: "Notifications", noNotifications: "No notifications", markRead: "Mark all as read",
+    broadcast: "Message all users", notificationTitle: "Title", notificationMessage: "Message",
+    sendNotification: "Send notification", sent: "Notification sent",
   },
 };
 export function AppProvider({ children }) {

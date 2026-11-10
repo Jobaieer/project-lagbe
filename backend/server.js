@@ -55,6 +55,7 @@ const orderView = (o, users, projects) => ({
   email: users.get(o.user_id)?.email,
   title: projects.get(o.project_id)?.title,
 });
+const notification = (user_id, title, body) => ({ user_id, title, body });
 
 async function ensureAdmin() {
   if (!db) throw new Error("Supabase environment variables are missing");
@@ -161,6 +162,35 @@ app.put(
   }),
 );
 app.get(
+  "/api/notifications",
+  auth(),
+  asyncRoute(async (req, r) => {
+    const rows = unwrap(
+      await db
+        .from("notifications")
+        .select("id,title,body,read,created")
+        .eq("user_id", req.u.id)
+        .order("id", { ascending: false })
+        .limit(30),
+    );
+    r.json(rows);
+  }),
+);
+app.put(
+  "/api/notifications/read-all",
+  auth(),
+  asyncRoute(async (req, r) => {
+    unwrap(
+      await db
+        .from("notifications")
+        .update({ read: true })
+        .eq("user_id", req.u.id)
+        .eq("read", false),
+    );
+    r.json({ ok: 1 });
+  }),
+);
+app.get(
   "/api/projects",
   asyncRoute(async (_, r) => {
     r.set("Cache-Control", "public,max-age=30");
@@ -196,6 +226,15 @@ app.post(
         note: note || "",
       }),
     );
+    const admins = unwrap(await db.from("users").select("id").eq("role", "admin"));
+    if (admins.length)
+      unwrap(
+        await db.from("notifications").insert(
+          admins.map((admin) =>
+            notification(admin.id, "New order", `A new ${option} order was submitted.`),
+          ),
+        ),
+      );
     r.json({ ok: 1 });
   }),
 );
@@ -247,6 +286,9 @@ app.put(
   asyncRoute(async (req, r) => {
     if (!["pending", "approved", "rejected"].includes(req.body.status))
       return bad(r, "Invalid");
+    const current = unwrap(
+      await db.from("orders").select("user_id,status").eq("id", req.params.id).single(),
+    );
     unwrap(
       await db
         .from("orders")
@@ -256,7 +298,35 @@ app.put(
         })
         .eq("id", req.params.id),
     );
+    if (current.status !== req.body.status) {
+      unwrap(
+        await db.from("notifications").insert(
+          notification(
+            current.user_id,
+            "Order status updated",
+            `Your order is now ${req.body.status}.`,
+          ),
+        ),
+      );
+    }
     r.json({ ok: 1 });
+  }),
+);
+app.post(
+  "/api/admin/notifications",
+  A,
+  asyncRoute(async (req, r) => {
+    const title = (req.body.title || "").trim();
+    const body = (req.body.body || "").trim();
+    if (!title || !body) return bad(r, "Title ও message দিন");
+    const users = unwrap(await db.from("users").select("id").eq("role", "user"));
+    if (users.length)
+      unwrap(
+        await db
+          .from("notifications")
+          .insert(users.map((u) => notification(u.id, title, body))),
+      );
+    r.json({ ok: 1, count: users.length });
   }),
 );
 app.get(

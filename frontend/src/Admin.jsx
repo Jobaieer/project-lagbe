@@ -72,6 +72,7 @@ export default function Admin() {
   const [P, setP] = useState([]);
   const [f, setF] = useState(E0);
   const [editingId, setEditingId] = useState(null);
+  const [message, setMessage] = useState({ title: "", body: "" });
   const load = useCallback(() => {
     Promise.all([api("admin/orders"), api("admin/projects")]).then(([o, p]) => {
       setO(o);
@@ -126,6 +127,16 @@ export default function Admin() {
     setF(E0);
   };
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
+  const sendBroadcast = async (e) => {
+    e.preventDefault();
+    try {
+      await api("admin/notifications", "POST", message);
+      setMessage({ title: "", body: "" });
+      notify(t("sent"));
+    } catch (x) {
+      notify(x.message);
+    }
+  };
   return (
     <>
       <h1>{t("admin")}</h1>
@@ -228,6 +239,12 @@ export default function Admin() {
           </div>
         </div>
       ))}
+      <h3>{t("broadcast")}</h3>
+      <form className="card" onSubmit={sendBroadcast}>
+        <input required value={message.title} onChange={(e) => setMessage({ ...message, title: e.target.value })} placeholder={t("notificationTitle")} />
+        <textarea required value={message.body} onChange={(e) => setMessage({ ...message, body: e.target.value })} placeholder={t("notificationMessage")} />
+        <button>{t("sendNotification")}</button>
+      </form>
     </>
   );
 }

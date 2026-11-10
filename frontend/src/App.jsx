@@ -3,6 +3,46 @@ import { Routes, Route, Link, Navigate, useNavigate } from "react-router-dom";
 import { api } from "./api";
 import { useApp } from "./ctx";
 const Admin = lazy(() => import("./Admin"));
+function Notifications() {
+  const { t } = useApp();
+  const [items, setItems] = useState([]);
+  const [open, setOpen] = useState(false);
+  const load = () => api("notifications").then(setItems).catch(() => setItems([]));
+  useEffect(() => {
+    load();
+    const timer = setInterval(load, 30000);
+    return () => clearInterval(timer);
+  }, []);
+  const unread = items.filter((item) => !item.read).length;
+  const markRead = async () => {
+    if (!unread) return;
+    await api("notifications/read-all", "PUT");
+    setItems(items.map((item) => ({ ...item, read: true })));
+  };
+  return (
+    <div className="notification-wrap">
+      <button className="notification-button" onClick={() => setOpen(!open)} aria-label={t("notifications")}>
+        <span aria-hidden="true">♢</span>
+        {unread > 0 && <b>{unread > 9 ? "9+" : unread}</b>}
+      </button>
+      {open && (
+        <div className="notification-panel">
+          <div className="notification-head">
+            <strong>{t("notifications")}</strong>
+            <button className="link" onClick={markRead}>{t("markRead")}</button>
+          </div>
+          {items.length ? items.map((item) => (
+            <div className={"notification-item" + (item.read ? "" : " unread")} key={item.id}>
+              <strong>{item.title}</strong>
+              <p>{item.body}</p>
+              <small>{new Date(item.created).toLocaleString()}</small>
+            </div>
+          )) : <p className="notification-empty">{t("noNotifications")}</p>}
+        </div>
+      )}
+    </div>
+  );
+}
 const Header = () => {
   const { user, logout, lang, t, toggleLanguage } = useApp();
   const go = useNavigate();
@@ -17,6 +57,7 @@ const Header = () => {
           <>
             <Link to="/orders">{t("orders")}</Link>
             <Link to="/account">{t("account")}</Link>
+            <Notifications />
             {user.role === "admin" && <Link to="/admin">{t("admin")}</Link>}
             <button
               className="link"
