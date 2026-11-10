@@ -270,6 +270,8 @@ export default function Admin() {
         <div className="card mb" key={application.id}>
           <strong>{application.users?.name}</strong>
           <span className="tag">{application.users?.email} · {application.university}</span>
+          <p className="tag">{t("universityId")}: {application.university_id} · {t("department")}: {application.department}</p>
+          <p className="tag">{t("institutionEmail")}: {application.institution_email}</p>
           <p>{application.reason}</p>
           <div className="row">
             <button className="sm" onClick={() => reviewSeller(application.id, "approved")}>{t("approve")}</button>

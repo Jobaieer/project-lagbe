@@ -363,6 +363,32 @@ h1 {
 .narrow {
   max-width: 380px;
 }
+.check-row {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 0.9rem;
+  line-height: 1.4;
+}
+.check-row input {
+  width: auto;
+  margin-top: 3px;
+}
+.check-row a {
+  color: var(--tomato);
+}
+.policy {
+  max-width: 900px;
+  margin: 24px auto;
+  line-height: 1.7;
+}
+.policy h1,
+.policy h2 {
+  color: var(--tomato);
+}
+.policy li {
+  margin: 8px 0;
+}
 .mb {
   margin-bottom: 8px;
 }

@@ -51,6 +51,10 @@ const tok = (u) => ({
   }),
   role: u.role,
   seller_status: u.seller_status || "none",
+  university: u.university || null,
+  university_id: u.university_id || null,
+  department: u.department || null,
+  institution_email: u.institution_email || null,
   name: u.name,
 });
 const auth = (role) => (req, r, n) => {
@@ -82,13 +86,23 @@ const unwrap = (result) => {
   return result.data;
 };
 const orderView = (o, users, projects) => ({
-  ...o,
+  id: o.id, user_id: o.user_id, project_id: o.project_id, option: o.option,
+  method: o.method, trx_id: o.trx_id, note: o.note, status: o.status,
+  meet_link: o.meet_link, created: o.created,
   uname: users.get(o.user_id)?.name,
   email: users.get(o.user_id)?.email,
   title: projects.get(o.project_id)?.title,
 });
 const notification = (user_id, title, body) => ({ user_id, title, body });
 const A = auth("admin");
+const PLATFORM_COMMISSION_PERCENT = 20;
+const TERMS_VERSION = "2026-11-11";
+const validInstitutionEmail = (value) => {
+  const email = String(value || "").trim().toLowerCase();
+  const match = email.match(/^[^\s@]+@([^\s@]+\.[^\s@]+)$/);
+  if (!match) return false;
+  return !["gmail.com", "yahoo.com", "outlook.com", "hotmail.com", "icloud.com"].includes(match[1]);
+};
 
 async function ensureAdmin() {
   if (!db) throw new Error("Supabase environment variables are missing");
@@ -132,11 +146,12 @@ app.post(
   "/api/register",
   lim,
   asyncRoute(async (req, r) => {
-    const { name, email, password } = req.body;
+    const { name, email, password, terms_accepted } = req.body;
     if (
       !name ||
       !/^\S+@\S+\.\S+$/.test(email || "") ||
-      (password || "").length < 6
+      (password || "").length < 6 ||
+      terms_accepted !== true
     )
       return bad(r, "নাম, সঠিক ইমেইল ও ৬+ অক্ষরের পাসওয়ার্ড দিন");
     const result = await db
@@ -145,6 +160,8 @@ app.post(
         name: name.trim(),
         email: email.toLowerCase(),
         pass: bcrypt.hashSync(password, 10),
+        terms_version: TERMS_VERSION,
+        terms_accepted_at: new Date().toISOString(),
       })
       .select("id,name,role,seller_status")
       .single();
@@ -159,7 +176,7 @@ app.post(
   asyncRoute(async (req, r) => {
     const result = await db
       .from("users")
-      .select("id,name,role,seller_status,pass")
+      .select("id,name,role,seller_status,university_id,department,institution_email,pass")
       .eq("email", (req.body.email || "").toLowerCase())
       .maybeSingle();
     const u = unwrap(result);
@@ -173,19 +190,28 @@ app.post(
   auth(),
   asyncRoute(async (req, r) => {
     const university = (req.body.university || "").trim();
+    const university_id = (req.body.university_id || "").trim();
+    const department = (req.body.department || "").trim();
+    const institution_email = (req.body.institution_email || "").trim().toLowerCase();
     const reason = (req.body.reason || "").trim();
-    if (!university || !reason) return bad(r, "University ও কারণ দিন");
+    if (req.body.terms_accepted !== true) return bad(r, "Seller terms গ্রহণ করুন");
+    if (!university || !university_id || !department || !reason || !validInstitutionEmail(institution_email))
+      return bad(r, "University, ID, department এবং valid institutional email দিন");
     const user = unwrap(await db.from("users").select("role,seller_status").eq("id", req.u.id).single());
     if (user.role === "seller" || user.seller_status === "approved")
       return bad(r, "আপনি ইতিমধ্যে seller");
     if (user.seller_status === "pending") return bad(r, "আপনার application review হচ্ছে");
     unwrap(
       await db.from("seller_applications").upsert(
-        { user_id: req.u.id, university, reason, status: "pending" },
+        { user_id: req.u.id, university, university_id, department, institution_email, reason, status: "pending" },
         { onConflict: "user_id" },
       ),
     );
     unwrap(await db.from("users").update({ seller_status: "pending" }).eq("id", req.u.id));
+    unwrap(await db.from("users").update({
+      terms_version: TERMS_VERSION,
+      terms_accepted_at: new Date().toISOString(),
+    }).eq("id", req.u.id));
     r.json({ ok: 1 });
   }),
 );
@@ -300,7 +326,7 @@ app.post(
         note: note || "",
         seller_id: project.seller_id,
         payout_amount: project.seller_id
-          ? Number(price) * (1 - Number(project.commission_percent || 20) / 100)
+          ? Number(price) * (1 - Number(project.commission_percent || PLATFORM_COMMISSION_PERCENT) / 100)
           : null,
       }),
     );
@@ -347,7 +373,18 @@ app.get(
   asyncRoute(async (req, r) => {
     const projects = unwrap(await db.from("projects").select("*").eq("seller_id", req.u.id).eq("active", true).order("id", { ascending: false }));
     const orders = unwrap(await db.from("orders").select("id,project_id,option,status,payout_amount,payout_status,created").eq("seller_id", req.u.id).order("id", { ascending: false }));
-    r.json({ projects, orders });
+    const projectMap = new Map(projects.map((p) => [p.id, p]));
+    r.json({ projects, orders: orders.map((o) => {
+      const project = projectMap.get(o.project_id);
+      const gross_amount = Number(o.option === "consult" ? project?.price_consult : project?.price_code) || 0;
+      const payout_amount = Number(o.payout_amount) || 0;
+      return {
+        ...o,
+        gross_amount,
+        commission_amount: Math.max(0, gross_amount - payout_amount),
+        commission_percent: Number(project?.commission_percent) || 0,
+      };
+    }) });
   }),
 );
 app.post(
@@ -372,7 +409,7 @@ app.post(
           price_code: +b.price_code,
           price_consult: +b.price_consult,
           download_url: b.download_url || null,
-          commission_percent: 20,
+          commission_percent: PLATFORM_COMMISSION_PERCENT,
         }).select("*").single(),
       ),
     });
@@ -423,9 +460,16 @@ app.put(
   A,
   asyncRoute(async (req, r) => {
     if (!["approved", "rejected"].includes(req.body.status)) return bad(r, "Invalid status");
-    const application = unwrap(await db.from("seller_applications").select("user_id").eq("id", req.params.id).single());
+    const application = unwrap(await db.from("seller_applications").select("user_id,university,university_id,department,institution_email").eq("id", req.params.id).single());
     unwrap(await db.from("seller_applications").update({ status: req.body.status }).eq("id", req.params.id));
-    unwrap(await db.from("users").update({ role: req.body.status === "approved" ? "seller" : "buyer", seller_status: req.body.status }).eq("id", application.user_id));
+    unwrap(await db.from("users").update({
+      role: req.body.status === "approved" ? "seller" : "buyer",
+      seller_status: req.body.status,
+      university: req.body.status === "approved" ? application.university : null,
+      university_id: req.body.status === "approved" ? application.university_id : null,
+      department: req.body.status === "approved" ? application.department : null,
+      institution_email: req.body.status === "approved" ? application.institution_email : null,
+    }).eq("id", application.user_id));
     unwrap(
       await db.from("notifications").insert(
         notification(
@@ -464,7 +508,7 @@ app.get(
   A,
   asyncRoute(async (_, r) => {
     const orders = unwrap(
-      await db.from("orders").select("*").order("id", { ascending: false }),
+      await db.from("orders").select("id,user_id,project_id,option,method,trx_id,note,status,meet_link,created").order("id", { ascending: false }),
     );
     const [users, projects] = await Promise.all([
       db.from("users").select("id,name,email"),

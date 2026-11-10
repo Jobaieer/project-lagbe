@@ -73,6 +73,7 @@ const Header = () => {
         ) : (
           <Link to="/login">{t("loginRegister")}</Link>
         )}
+        <Link to="/terms">{t("terms")}</Link>
         <button className="lang" onClick={toggleLanguage} aria-label="Change language">
           {lang === "bn" ? "English" : "বাংলা"}
         </button>
@@ -260,7 +261,7 @@ function Buy({ p, option, onClose }) {
 function Login() {
   const { login, notify, t } = useApp();
   const go = useNavigate();
-  const [f, setF] = useState({ name: "", email: "", password: "" });
+  const [f, setF] = useState({ name: "", email: "", password: "", terms_accepted: false });
   const [reg, setReg] = useState(false);
   const [busy, setBusy] = useState(false);
   const submit = async (e) => {
@@ -305,6 +306,17 @@ function Login() {
           placeholder={t("password")}
           autoComplete={reg ? "new-password" : "current-password"}
         />
+        {reg && (
+          <label className="check-row">
+            <input
+              type="checkbox"
+              checked={f.terms_accepted}
+              onChange={(e) => setF({ ...f, terms_accepted: e.target.checked })}
+              required
+            />
+            <span>{t("termsAccept")} · <Link to="/terms">{t("terms")}</Link></span>
+          </label>
+        )}
         <div className="row">
           <button disabled={busy}>{reg ? t("register") : t("login")}</button>
           <button type="button" className="alt" onClick={() => setReg(!reg)}>
@@ -315,6 +327,41 @@ function Login() {
     </>
   );
 }
+function Terms() {
+  const { t } = useApp();
+  return (
+    <article className="card policy">
+      <h1>{t("terms")}</h1>
+      <p>{t("policyIntro")}</p>
+      <h2>{t("buyerTerms")}</h2>
+      <ul>
+        <li>Buyer must provide accurate account and payment information and must not share purchased files beyond the permitted license.</li>
+        <li>Projects are educational materials; buyers remain responsible for lawful academic use and must not submit another person’s work as their own where academic rules prohibit it.</li>
+        <li>Buyers must not attempt unauthorised access, reverse engineering of protected services, payment fraud, harassment, or abuse of live consultation.</li>
+      </ul>
+      <h2>{t("sellerTerms")}</h2>
+      <ul>
+        <li>Seller must be the lawful owner or authorised licensor of every project, image, document, dataset and link submitted.</li>
+        <li>Seller must provide accurate university verification information and must not upload malware, credentials, personal data, pirated material, or deceptive content.</li>
+        <li>Seller accepts the published 20% platform commission and is responsible for lawful tax, licensing and delivery obligations applicable to the seller.</li>
+      </ul>
+      <h2>{t("prohibited")}</h2>
+      <p>No fraud, impersonation, plagiarism-for-submission, copyright infringement, malware, illegal goods/services, hate or abusive content, unauthorised personal-data disclosure, or attempts to bypass platform security are allowed.</p>
+      <h2>{t("refunds")}</h2>
+      <p>Payments are reviewed by the platform. A buyer may report duplicate payment, non-delivery, materially misleading listing, or unauthorised transaction through the platform. Refunds or order cancellation are decided after evidence review; completed digital delivery may limit refund eligibility except where required by law.</p>
+      <h2>{t("privacy")}</h2>
+      <p>Project Lagbe collects account, transaction, verification and security data necessary to operate the service, prevent fraud, provide support and meet legal obligations. Data is accessed only for legitimate operational, safety or legal purposes and is not sold as a product.</p>
+      <h2>{t("ip")}</h2>
+      <p>Copyright and other intellectual-property rights remain with their lawful owners unless a separate licence says otherwise. Users grant the platform only the limited licence needed to host, display, review and deliver authorised listings.</p>
+      <h2>{t("enforcement")}</h2>
+      <p>We may warn, suspend, remove content, hold payouts, cancel transactions, preserve evidence and report suspected unlawful conduct to competent authorities. We may cooperate with valid legal requests.</p>
+      <h2>{t("legal")}</h2>
+      <p>These terms are intended to operate consistently with applicable laws of Bangladesh, including laws relating to contracts, consumer protection, copyright, electronic transactions, cyber security and privacy, as amended from time to time. Subject to mandatory legal rights, disputes will be handled under the competent courts of Bangladesh.</p>
+      <p className="tag">Effective date: 11 November 2026 · Terms version: 2026-11-11</p>
+      <p className="tag">This page is general platform policy, not a substitute for advice from a Bangladesh-qualified lawyer.</p>
+    </article>
+  );
+}
 function Account() {
   const { notify, t, user } = useApp();
   const [f, setF] = useState({
@@ -323,7 +370,7 @@ function Account() {
     confirm_password: "",
   });
   const [busy, setBusy] = useState(false);
-  const [sellerForm, setSellerForm] = useState({ university: "", reason: "" });
+  const [sellerForm, setSellerForm] = useState({ university: "", university_id: "", department: "", institution_email: "", reason: "", terms_accepted: false });
   const set = (key) => (e) => setF({ ...f, [key]: e.target.value });
   const submit = async (e) => {
     e.preventDefault();
@@ -342,7 +389,7 @@ function Account() {
     e.preventDefault();
     try {
       await api("seller/apply", "POST", sellerForm);
-      setSellerForm({ university: "", reason: "" });
+      setSellerForm({ university: "", university_id: "", department: "", institution_email: "", reason: "", terms_accepted: false });
       notify(t("applicationSent"));
     } catch (x) {
       notify(x.message);
@@ -368,7 +415,14 @@ function Account() {
           <h2>{t("applySeller")}</h2>
           <form className="card narrow" onSubmit={applySeller}>
             <input required value={sellerForm.university} onChange={(e) => setSellerForm({ ...sellerForm, university: e.target.value })} placeholder={t("university")} />
+            <input required value={sellerForm.university_id} onChange={(e) => setSellerForm({ ...sellerForm, university_id: e.target.value })} placeholder={t("universityId")} />
+            <input required value={sellerForm.department} onChange={(e) => setSellerForm({ ...sellerForm, department: e.target.value })} placeholder={t("department")} />
+            <input required type="email" value={sellerForm.institution_email} onChange={(e) => setSellerForm({ ...sellerForm, institution_email: e.target.value })} placeholder={t("institutionEmail")} />
             <textarea required value={sellerForm.reason} onChange={(e) => setSellerForm({ ...sellerForm, reason: e.target.value })} placeholder={t("applicationReason")} />
+            <label className="check-row">
+              <input required type="checkbox" checked={sellerForm.terms_accepted} onChange={(e) => setSellerForm({ ...sellerForm, terms_accepted: e.target.checked })} />
+              <span>{t("termsAccept")} · <Link to="/terms">{t("terms")}</Link></span>
+            </label>
             <button>{t("apply")}</button>
           </form>
         </>
@@ -418,6 +472,11 @@ function Seller() {
   return (
     <>
       <h1>{t("sellerDashboard")}</h1>
+      <div className="card">
+        <strong>{t("sellerProfile")}</strong>
+        <p className="tag">{t("university")}: {JSON.parse(localStorage.getItem("u") || "{}").university || "-"} · {t("universityId")}: {JSON.parse(localStorage.getItem("u") || "{}").university_id || "-"}</p>
+        <p className="tag">{t("department")}: {JSON.parse(localStorage.getItem("u") || "{}").department || "-"} · {t("institutionEmail")}: {JSON.parse(localStorage.getItem("u") || "{}").institution_email || "-"}</p>
+      </div>
       <h2>{t("sellerProjects")}</h2>
       <form className="card" onSubmit={save}>
         <input required value={f.title} onChange={set("title")} placeholder={t("title")} />
@@ -434,6 +493,9 @@ function Seller() {
       </form>
       <div className="card">
         <strong>{t("availablePayout")}: ৳{available.toFixed(2)}</strong>
+        {data.orders.filter((o) => o.status === "approved").map((o) => (
+          <p className="tag" key={o.id}>৳{o.gross_amount.toFixed(2)} - {t("commission")}: ৳{o.commission_amount.toFixed(2)} = ৳{Number(o.payout_amount || 0).toFixed(2)}</p>
+        ))}
         <form className="row" onSubmit={request}>
           <input required type="number" min="1" value={amount} onChange={(e) => setAmount(e.target.value)} placeholder={t("payout")} />
           <button>{t("requestPayout")}</button>
@@ -516,6 +578,7 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
+            <Route path="/terms" element={<Terms />} />
             <Route
               path="/account"
               element={user ? <Account /> : <Navigate to="/login" />}
