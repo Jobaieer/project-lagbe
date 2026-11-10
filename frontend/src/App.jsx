@@ -365,6 +365,8 @@ function Terms() {
 }
 function Account() {
   const { notify, t, user } = useApp();
+  const [profile, setProfile] = useState(null);
+  const [profileName, setProfileName] = useState(user?.name || "");
   const [f, setF] = useState({
     current_password: "",
     new_password: "",
@@ -372,6 +374,20 @@ function Account() {
   });
   const [busy, setBusy] = useState(false);
   const [sellerForm, setSellerForm] = useState({ university: "", university_id: "", department: "", institution_email: "", reason: "", terms_accepted: false });
+  useEffect(() => {
+    api("profile").then((data) => {
+      setProfile(data);
+      setProfileName(data.name || "");
+    }).catch((x) => notify(x.message));
+  }, [notify]);
+  const updateProfile = async (e) => {
+    e.preventDefault();
+    try {
+      const data = await api("profile", "PUT", { name: profileName });
+      setProfile({ ...profile, ...data });
+      notify(t("profileUpdated"));
+    } catch (x) { notify(x.message); }
+  };
   const set = (key) => (e) => setF({ ...f, [key]: e.target.value });
   const submit = async (e) => {
     e.preventDefault();
@@ -398,6 +414,27 @@ function Account() {
   };
   return (
     <>
+      <h1>{t("profile")}</h1>
+      <div className="card profile-card">
+        <div className="profile-avatar">{(profile?.name || user?.name || "?").slice(0, 1).toUpperCase()}</div>
+        <div className="profile-main">
+          <form onSubmit={updateProfile} className="profile-form">
+            <label>{t("name")}</label>
+            <input required minLength="2" maxLength="80" value={profileName} onChange={(e) => setProfileName(e.target.value)} />
+            <button className="sm">{t("saveProfile")}</button>
+          </form>
+          <p className="tag">{profile?.email || "—"} · {t("role")}: {profile?.role || user?.role}</p>
+          <p className="tag">{t("joined")}: {profile?.created ? new Date(profile.created).toLocaleDateString() : "—"} · {t("ordersCount")}: {profile?.order_count ?? 0}</p>
+          {profile?.role === "seller" && (
+            <>
+              <p className="tag">{t("sellerStatus")}: {profile.seller_status} · {t("sellerProjects")}: {profile.project_count ?? 0}</p>
+              <p className="tag">{t("university")}: {profile.university || "—"} · {t("universityId")}: {profile.university_id || "—"}</p>
+              <p className="tag">{t("department")}: {profile.department || "—"} · {t("institutionEmail")}: {profile.institution_email || "—"}</p>
+              {profile.referral_code && <p className="tag">{t("referralLink")}: {window.location.origin}/?ref={profile.referral_code}</p>}
+            </>
+          )}
+        </div>
+      </div>
       <h1>{t("changePassword")}</h1>
       <form className="card narrow" onSubmit={submit}>
         <input required type="password" value={f.current_password}

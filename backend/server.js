@@ -254,6 +254,33 @@ app.put(
   }),
 );
 app.get(
+  "/api/profile",
+  auth(),
+  asyncRoute(async (req, r) => {
+    const profile = unwrap(await db.from("users")
+      .select("id,name,email,role,seller_status,university,university_id,department,institution_email,referral_code,created")
+      .eq("id", req.u.id)
+      .single());
+    const orders = await db.from("orders").select("id", { count: "exact", head: true }).eq("user_id", req.u.id);
+    const projects = await db.from("projects").select("id", { count: "exact", head: true }).eq("seller_id", req.u.id);
+    if (orders.error) throw orders.error;
+    if (projects.error) throw projects.error;
+    r.json({ ...profile, order_count: orders.count || 0, project_count: projects.count || 0 });
+  }),
+);
+app.put(
+  "/api/profile",
+  auth(),
+  asyncRoute(async (req, r) => {
+    const name = String(req.body.name || "").trim();
+    if (name.length < 2 || name.length > 80) return bad(r, "Valid name দিন");
+    const profile = unwrap(await db.from("users").update({ name }).eq("id", req.u.id)
+      .select("id,name,email,role,seller_status,university,university_id,department,institution_email,referral_code,created")
+      .single());
+    r.json(profile);
+  }),
+);
+app.get(
   "/api/notifications",
   auth(),
   asyncRoute(async (req, r) => {
