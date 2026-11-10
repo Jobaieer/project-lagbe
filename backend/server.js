@@ -335,10 +335,10 @@ app.get(
       .eq("active", true)
       .order("id", { ascending: false }));
     const sellerIds = [...new Set(projects.filter((p) => p.seller_id).map((p) => p.seller_id))];
-    const eligible = sellerIds.length
-      ? unwrap(await db.from("users").select("id").in("id", sellerIds).eq("seller_eligible", true))
-      : [];
-    const eligibleIds = new Set(eligible.map((u) => u.id));
+    const eligibleIds = new Set();
+    for (const sellerId of sellerIds) {
+      if (await sellerReferralSales(sellerId) >= 2) eligibleIds.add(sellerId);
+    }
     r.json(projects
       .filter((p) => !p.seller_id || eligibleIds.has(p.seller_id))
       .map(({ seller_id, ...project }) => project));

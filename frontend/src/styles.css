@@ -590,7 +590,6 @@ th {
   z-index: 10;
   box-shadow: 0 10px 24px #0003;
 }
-.loading-card,
 .empty-state {
   display: grid;
   place-items: center;
@@ -674,14 +673,6 @@ th {
 .empty-state strong {
   color: var(--ink);
   font-size: 18px;
-}
-.spinner {
-  width: 24px;
-  height: 24px;
-  border: 3px solid var(--line);
-  border-top-color: var(--org);
-  border-radius: 50%;
-  animation: spin 0.8s linear infinite;
 }
 @keyframes spin {
   to { transform: rotate(360deg); }

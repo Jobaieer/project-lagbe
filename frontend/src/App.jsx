@@ -135,6 +135,7 @@ const Card = memo(({ p, onBuy }) => {
 });
 function Home() {
   const [P, setP] = useState(null);
+  const [loadError, setLoadError] = useState("");
   const [s, setS] = useState("");
   const [query, setQuery] = useState("");
   const [category, setCategory] = useState("");
@@ -145,7 +146,10 @@ function Home() {
   useEffect(() => {
     api("projects")
       .then(setP)
-      .catch(() => setP([]));
+      .catch((error) => {
+        setLoadError(error.message);
+        setP([]);
+      });
   }, []);
   const list = useMemo(() => {
     const k = query.trim().toLowerCase();
@@ -178,8 +182,13 @@ function Home() {
         </select>
         <button type="submit">{t("search")}</button>
       </form>
-      {!P ? (
-        <div className="loading-card"><span className="spinner" />{t("loading")}</div>
+      {loadError ? (
+        <div className="empty-state">
+          <strong>{loadError}</strong>
+          <span>{t("retryAfterConfig")}</span>
+        </div>
+      ) : !P ? (
+        <Loading label={t("loading")} />
       ) : list.length ? (
         <div className="project-groups">
           {[...new Set(list.map((p) => p.category || t("otherCategory")))].map((group) => (
