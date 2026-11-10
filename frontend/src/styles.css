@@ -114,8 +114,21 @@ nav {
   border-bottom: 1px solid var(--line);
 }
 .notification-item.unread {
-  border-left: 3px solid var(--org);
-  background: #fff4ed;
+  position: relative;
+  border-left: 4px solid #f47b12;
+  background: linear-gradient(110deg, #f47b1226, #ff634722);
+  box-shadow: inset 0 0 22px #f47b1212;
+}
+.notification-item.unread::before {
+  content: "";
+  position: absolute;
+  top: 12px;
+  right: 10px;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #f47b12, #ff6347);
+  box-shadow: 0 0 0 4px #f47b1224, 0 0 12px #ff634799;
 }
 .notification-item p {
   margin: 3px 0;
