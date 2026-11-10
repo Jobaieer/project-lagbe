@@ -71,6 +71,7 @@ export default function Admin() {
   const [O, setO] = useState([]);
   const [P, setP] = useState([]);
   const [f, setF] = useState(E0);
+  const [editingId, setEditingId] = useState(null);
   const load = useCallback(() => {
     Promise.all([api("admin/orders"), api("admin/projects")]).then(([o, p]) => {
       setO(o);
@@ -78,11 +79,16 @@ export default function Admin() {
     });
   }, []);
   useEffect(load, [load]);
-  const add = async (e) => {
+  const save = async (e) => {
     e.preventDefault();
     try {
-      await api("admin/projects", "POST", f);
+      await api(
+        editingId ? "admin/projects/" + editingId : "admin/projects",
+        editingId ? "PUT" : "POST",
+        f,
+      );
       setF(E0);
+      setEditingId(null);
       notify(t("updated"));
       load();
     } catch (x) {
@@ -91,9 +97,33 @@ export default function Admin() {
   };
   const del = async (id) => {
     if (confirm(t("confirmDelete"))) {
-      await api("admin/projects/" + id, "DELETE");
-      load();
+      try {
+        await api("admin/projects/" + id, "DELETE");
+        notify(t("updated"));
+        load();
+      } catch (x) {
+        notify(x.message);
+      }
     }
+  };
+  const edit = (project) => {
+    setEditingId(project.id);
+    setF({
+      title: project.title || "",
+      category: project.category || "",
+      cover_url: project.cover_url || "",
+      course: project.course || "",
+      tech: project.tech || "",
+      description: project.description || "",
+      price_code: project.price_code ?? "",
+      price_consult: project.price_consult ?? "",
+      download_url: project.download_url || "",
+    });
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const cancelEdit = () => {
+    setEditingId(null);
+    setF(E0);
   };
   const set = (k) => (e) => setF({ ...f, [k]: e.target.value });
   return (
@@ -120,8 +150,8 @@ export default function Admin() {
           </tbody>
         </table>
       </div>
-      <h3>{t("newProject")}</h3>
-      <form className="card" onSubmit={add}>
+      <h3>{editingId ? t("edit") : t("newProject")}</h3>
+      <form className="card" onSubmit={save}>
         <input
           required
           value={f.title}
@@ -172,12 +202,22 @@ export default function Admin() {
           onChange={set("download_url")}
           placeholder={t("downloadUrl")}
         />
-        <button>{t("add")}</button>
+        <div className="row">
+          <button>{editingId ? t("update") : t("add")}</button>
+          {editingId && (
+            <button type="button" className="alt" onClick={cancelEdit}>
+              {t("cancelEdit")}
+            </button>
+          )}
+        </div>
       </form>
       <h3>{t("projectList")}</h3>
       {P.map((p) => (
         <div className="card mb" key={p.id}>
           {p.title} — ৳{p.price_code} / ৳{p.price_consult}{" "}
+          <button className="sm" onClick={() => edit(p)}>
+            {t("edit")}
+          </button>{" "}
           <button className="sm alt" onClick={() => del(p.id)}>
             {t("delete")}
           </button>

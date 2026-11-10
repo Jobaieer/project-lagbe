@@ -16,6 +16,7 @@ const Header = () => {
         {user ? (
           <>
             <Link to="/orders">{t("orders")}</Link>
+            <Link to="/account">{t("account")}</Link>
             {user.role === "admin" && <Link to="/admin">Admin</Link>}
             <button
               className="link"
@@ -250,6 +251,46 @@ function Login() {
     </>
   );
 }
+function Account() {
+  const { notify, t } = useApp();
+  const [f, setF] = useState({
+    current_password: "",
+    new_password: "",
+    confirm_password: "",
+  });
+  const [busy, setBusy] = useState(false);
+  const set = (key) => (e) => setF({ ...f, [key]: e.target.value });
+  const submit = async (e) => {
+    e.preventDefault();
+    setBusy(true);
+    try {
+      await api("password", "PUT", f);
+      setF({ current_password: "", new_password: "", confirm_password: "" });
+      notify(t("passwordChanged"));
+    } catch (x) {
+      notify(x.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <>
+      <h1>{t("changePassword")}</h1>
+      <form className="card narrow" onSubmit={submit}>
+        <input required type="password" value={f.current_password}
+          onChange={set("current_password")} placeholder={t("currentPassword")}
+          autoComplete="current-password" />
+        <input required minLength={6} type="password" value={f.new_password}
+          onChange={set("new_password")} placeholder={t("newPassword")}
+          autoComplete="new-password" />
+        <input required minLength={6} type="password" value={f.confirm_password}
+          onChange={set("confirm_password")} placeholder={t("confirmPassword")}
+          autoComplete="new-password" />
+        <button disabled={busy}>{busy ? t("submitting") : t("update")}</button>
+      </form>
+    </>
+  );
+}
 function Orders() {
   const [O, setO] = useState(null);
   useEffect(() => {
@@ -317,6 +358,10 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Home />} />
             <Route path="/login" element={<Login />} />
+            <Route
+              path="/account"
+              element={user ? <Account /> : <Navigate to="/login" />}
+            />
             <Route
               path="/orders"
               element={user ? <Orders /> : <Navigate to="/login" />}

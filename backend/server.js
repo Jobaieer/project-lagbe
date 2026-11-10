@@ -63,16 +63,15 @@ async function ensureAdmin() {
   const existing = unwrap(
     await db.from("users").select("id").eq("email", email).maybeSingle(),
   );
-  const data = {
-    name: "Admin",
-    email,
-    pass: bcrypt.hashSync(pass, 10),
-    role: "admin",
-  };
-  if (existing) {
-    unwrap(await db.from("users").update(data).eq("id", existing.id));
-  } else {
-    unwrap(await db.from("users").insert(data));
+  if (!existing) {
+    unwrap(
+      await db.from("users").insert({
+        name: "Admin",
+        email,
+        pass: bcrypt.hashSync(pass, 10),
+        role: "admin",
+      }),
+    );
   }
 }
 
@@ -133,6 +132,32 @@ app.post(
     u && bcrypt.compareSync(req.body.password || "", u.pass)
       ? r.json(tok(u))
       : bad(r, "ইমেইল/পাসওয়ার্ড ভুল");
+  }),
+);
+app.put(
+  "/api/password",
+  auth(),
+  asyncRoute(async (req, r) => {
+    const { current_password, new_password, confirm_password } = req.body;
+    if (
+      typeof current_password !== "string" ||
+      typeof new_password !== "string" ||
+      new_password.length < 6 ||
+      new_password !== confirm_password
+    )
+      return bad(r, "নতুন পাসওয়ার্ড ৬+ অক্ষরের হতে হবে এবং দুবার একই দিতে হবে");
+    const user = unwrap(
+      await db.from("users").select("pass").eq("id", req.u.id).single(),
+    );
+    if (!bcrypt.compareSync(current_password, user.pass))
+      return bad(r, "বর্তমান পাসওয়ার্ড সঠিক নয়", 401);
+    unwrap(
+      await db
+        .from("users")
+        .update({ pass: bcrypt.hashSync(new_password, 10) })
+        .eq("id", req.u.id),
+    );
+    r.json({ ok: 1 });
   }),
 );
 app.get(
@@ -261,6 +286,32 @@ app.post(
         price_consult: +b.price_consult,
         download_url: b.download_url,
       }),
+    );
+    r.json({ ok: 1 });
+  }),
+);
+app.put(
+  "/api/admin/projects/:id",
+  A,
+  asyncRoute(async (req, r) => {
+    const b = req.body;
+    if (!b.title || !(+b.price_code >= 0) || !(+b.price_consult >= 0))
+      return bad(r, "Title ও দাম দিন");
+    unwrap(
+      await db
+        .from("projects")
+        .update({
+          title: b.title,
+          category: b.category || "অন্যান্য",
+          cover_url: b.cover_url || null,
+          course: b.course || "",
+          tech: b.tech || "",
+          description: b.description || "",
+          price_code: +b.price_code,
+          price_consult: +b.price_consult,
+          download_url: b.download_url || null,
+        })
+        .eq("id", req.params.id),
     );
     r.json({ ok: 1 });
   }),
